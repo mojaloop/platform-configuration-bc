@@ -1,0 +1,47 @@
+{
+  "name": "@mojaloop/logging-bc",
+  "version": "0.0.1",
+  "description": "mojaloop logging bounded context.",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/mojaloop/logging-bc",
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/mojaloop/logging-bc/issues#readme"
+  },
+  "contributors": [
+    "Miguel de Barros <miguel.debarros@modusbox.com>"
+  ],
+  "scripts": {
+    "prepare": "husky install",
+    "start": "lerna run --no-progress --stream  start",
+    "start:logging-svc": "lerna run build --no-progress --stream --scope='@mojaloop/logging-bc-logging-svc' && lerna run --no-progress --stream --scope='@mojaloop/logging-bc-logging-svc' start",
+    "build": "lerna run --stream build",
+    "watch": "lerna run --no-progress --stream --parallel watch",
+    "clean": "yarn run clean:dist && yarn run clean:npm",
+    "clean:npm": "lerna clean",
+    "clean:dist": "lerna run clean",
+    "pretest": "echo 'FIX ME'",
+    "standard": "yarn run --no-progress --stream lint'",
+    "lint": "lerna run --no-progress --stream lint",
+    "lint:logging-svc": "lerna run --no-progress --stream lint --scope='@mojaloop-poc/logging-bc-logging-svc'",
+    "lint:fix": "lerna run --no-progress --stream lint:fix",
+    "test:unit": "lerna run --no-progress --stream test:unit",
+    "test:coverage": "lerna run --no-progress --stream test:coverage",
+    "test:coverage-check": "lerna run --no-progress --stream test:coverage-check",
+    "test:integration": "lerna run --no-progress --stream test:integration",
+    "audit:resolve": "lerna run --no-progress --stream audit:resolve",
+    "audit:check": "lerna run --no-progress --stream audit:check",
+    "dep:check": "lerna run --no-progress --stream dep:check",
+    "dep:update": "lerna run --no-progress --stream dep:update"
+  },
+  "dependencies": {
+    "lerna": "^4.0.0"
+  },
+  "devDependencies": {
+    "husky": "^7.0.4"
+  },
+  "workspaces": [
+    "modules/*"
+  ],
+  "packageManager": "yarn@3.1.0"
+}
