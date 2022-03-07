@@ -22,35 +22,20 @@
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
 
- * Coil
- - Donovan Changfoot <donovan.changfoot@coil.com>
-
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
- * ModusBox
- - Miguel de Barros <miguel.debarros@modusbox.com>
- - Roman Pietrzak <roman.pietrzak@modusbox.com>
-
  --------------
-******/
+ ******/
 
 'use strict'
 
-export type ILogger = {
-  // trace(...anything);
+import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 
-  // methods to check debug level
-  isDebugEnabled: () => boolean
-  isInfoEnabled: () => boolean
-  isWarnEnabled: () => boolean
-  isErrorEnabled: () => boolean
-  isFatalEnabled: () => boolean
-
-  // methods to handle logging per level
-  debug: (message?: any, ...optionalParams: any[]) => void
-  info: (message?: any, ...optionalParams: any[]) => void
-  warn: (message?: any, ...optionalParams: any[]) => void
-  error: (message?: any, ...optionalParams: any[]) => void
-  fatal: (message?: any, ...optionalParams: any[]) => void
+export interface IConfigSetRepository {
+    store(configSet:IConfigurationSet):Promise<boolean>;
+    fetchLatest(bcName:string, appName:string):Promise<IConfigurationSet | null>;
+    fetchVersion(bcName:string, appName:string, version:number):Promise<IConfigurationSet | null>;
+    // hasVersion(bcName:string, appName:string, version:number):Promise<boolean>;
+    // has(bcName:string, appName:string):Promise<boolean>;
 }

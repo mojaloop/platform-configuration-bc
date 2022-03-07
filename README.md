@@ -1,21 +1,17 @@
-# logging-bc
+# platform-configuration-bc
 
-**EXPERIMENTAL** vNext Logging Bounded Context Mono Repository
+**EXPERIMENTAL** vNext Platform Configuration Bounded Context Mono Repository
 
 {{DESCRIPTION}}
 
 ## Modules
 
-### logging-svc
-
-{{DESCRIPTION}}
-
-[README](./modules/logging-svc/README.md)
+TBD
 
 #### Run
 
 ```bash
-yarn start:logging-svc
+yarn start
 ```
 
 ## Usage

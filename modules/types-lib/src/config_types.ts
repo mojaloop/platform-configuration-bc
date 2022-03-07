@@ -22,73 +22,53 @@
  * Gates Foundation
  - Name Surname <name.surname@gatesfoundation.com>
 
- * Coil
- - Donovan Changfoot <donovan.changfoot@coil.com>
-
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
- * ModusBox
- - Miguel de Barros <miguel.debarros@modusbox.com>
- - Roman Pietrzak <roman.pietrzak@modusbox.com>
-
  --------------
-******/
+ ******/
 
 'use strict'
 
-/* eslint-disable no-console */
+export enum ConfigParameterTypes {
+    "STRING" = 'STRING',
+    'BOOL' = 'BOOL',
+    'INT_NUMBER' = 'INT_NUMBER',
+    'FLOAT_NUMBER' = 'FLOAT_NUMBER'
+}
 
-import { ILogger } from '@mojaloop/logging-bc-common'
+export class IConfigParameter {
+    name: string;
+    type: ConfigParameterTypes;
+    defaultValue: any;
+    description: string;
+    currentValue: any;
+}
 
-export class ConsoleLogger implements ILogger {
-  // trace(...anything) {
-  //  console.trace.apply(this, anything);
-  // }
-  private readonly _logger: any
+export interface IConfigFeatureFlag {
+    name: string;
+    defaultValue: boolean;
+    description: string;
+    currentValue: boolean;
+}
 
-  isDebugEnabled (): boolean {
-    return true
-  }
+export interface IConfigSecret {
+    name: string;
+    defaultValue: string | null;
+    description: string;
+    currentValue: string;
+}
 
-  isInfoEnabled (): boolean {
-    return true
-  }
+export interface IConfigurationSet{
+    readonly id: IConfigurationSetId;
+    readonly params: IConfigParameter[];
+    readonly featureFlags: IConfigFeatureFlag[];
+    readonly secrets: IConfigSecret[];
+}
 
-  isWarnEnabled (): boolean {
-    return true
-  }
-
-  isErrorEnabled (): boolean {
-    return true
-  }
-
-  isFatalEnabled (): boolean {
-    return true
-  }
-
-  debug (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.log.apply(this, arguments)
-  }
-
-  info (message?: any, ...optionalParams: any[]): void {
-    // @ts-expect-error
-    console.info.apply(this, arguments)
-  }
-
-  warn (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.warn.apply(this, arguments)
-  }
-
-  error (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
-  }
-
-  fatal (message?: any, ...optional: any[]): void {
-    // @ts-expect-error
-    console.error.apply(this, arguments)
-  }
+export interface IConfigurationSetId{
+    boundedContext: string;
+    application: string;
+    versionNumber: number;
+    patchNumber: number;
 }

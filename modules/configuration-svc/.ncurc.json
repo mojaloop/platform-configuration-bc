@@ -1,0 +1,6 @@
+{
+  "reject": [
+    "typescript",
+    "@mojaloop/platform-configuration-bc-types-lib"
+  ]
+}

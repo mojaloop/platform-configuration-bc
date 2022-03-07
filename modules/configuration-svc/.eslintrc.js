@@ -1,15 +1,15 @@
 module.exports = {
-  extends: 'standard-with-typescript',
+  extends: [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
   parserOptions: {
     sourceType: 'module', // Allows for the use of imports
     project: './tsconfig.json'
   },
   ignorePatterns: ['**/*.d.ts', '**/*.js', '**/*.js.map'],
   rules: {
-    'no-console': 'error',
-    'no-async-promise-executor': 'off',
-    '@typescript-eslint/no-non-null-assertion': 'off',
-    '@typescript-eslint/consistent-type-definitions': 'off'
+
   },
   overrides: [
     {
