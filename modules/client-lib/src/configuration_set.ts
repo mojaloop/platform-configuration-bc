@@ -50,6 +50,8 @@ export class ConfigurationSet {
         this._boundedContext = _boundedContext;
         this._application = _application;
         this._versionNumber = _version;
+        this._patchNumber = 0;
+
         this._params = new Map<string, IConfigParameter>();
         this._featureFlags = new Map<string, IConfigFeatureFlag>();
         this._secrets = new Map<string, IConfigSecret>();
@@ -73,6 +75,8 @@ export class ConfigurationSet {
 
     async init(): Promise<void>{
         await this._configProvider.init();
+
+        this._applyFromEnvVars();
     }
 
     async fetch(versionNumber?:number): Promise<void>{
@@ -87,6 +91,8 @@ export class ConfigurationSet {
         // TODO check that ID matches
 
         this._fromJsonObj(configSetDto);
+
+        this._applyFromEnvVars(); // env vars always take priority
     }
 
     async bootstrap(): Promise<boolean>{
@@ -156,16 +162,20 @@ export class ConfigurationSet {
         }
     }
 
+    private _applyFromEnvVars(){
+        // TODO: add _applyFromEnvVars() method
+    }
+
     /*************************
      * params
      **************************/
 
     addParam(param: IConfigParameter): void {
-        if (this.has(param.name)) {
+        if (this.has(param.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${param.name}`);
         }
 
-        this._params.set(param.name, param)
+        this._params.set(param.name.toUpperCase(), param)
     }
 
     addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void {
@@ -179,15 +189,15 @@ export class ConfigurationSet {
 
         // TODO validate
 
-        if (this.has(param.name)) {
+        if (this.has(param.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${name}`);
         }
 
-        this._params.set(param.name, param);
+        this._params.set(param.name.toUpperCase(), param);
     }
 
     getParam(paramName: string): IConfigParameter | null {
-        return this._params.get(paramName) ?? null;
+        return this._params.get(paramName.toUpperCase()) ?? null;
     }
 
     getAllParams(): IConfigParameter[] {
@@ -195,7 +205,7 @@ export class ConfigurationSet {
     }
 
     setParamValue(paramName:string, value:any){
-        const param: IConfigParameter | null = this._params.get(paramName) ?? null;
+        const param: IConfigParameter | null = this._params.get(paramName.toUpperCase()) ?? null;
         if(!param) {
             throw("param does not exit, cannot set value");
         }
@@ -208,11 +218,11 @@ export class ConfigurationSet {
      **************************/
 
     addFeatureFlag(featureFlag: IConfigFeatureFlag): void {
-        if (this.has(featureFlag.name)) {
+        if (this.has(featureFlag.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${featureFlag.name}`);
         }
 
-        this._featureFlags.set(featureFlag.name, featureFlag);
+        this._featureFlags.set(featureFlag.name.toUpperCase(), featureFlag);
     }
 
     addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void {
@@ -222,7 +232,7 @@ export class ConfigurationSet {
             description: description,
             currentValue: defaultValue
         };
-        if (this.has(featureFlag.name)) {
+        if (this.has(featureFlag.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${name}`);
         }
 
@@ -230,7 +240,7 @@ export class ConfigurationSet {
     }
 
     getFeatureFlag(featureFlagName: string): IConfigFeatureFlag | null {
-        return this._featureFlags.get(featureFlagName) ?? null;
+        return this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
     }
 
     getAllFeatureFlags(): IConfigFeatureFlag[] {
@@ -238,7 +248,7 @@ export class ConfigurationSet {
     }
 
     setFeatureFlagValue(featureFlagName:string, value:boolean){
-        const featureFlag: IConfigFeatureFlag | null = this._featureFlags.get(featureFlagName) ?? null;
+        const featureFlag: IConfigFeatureFlag | null = this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
         if(!featureFlag) {
             throw("featureFlag does not exit, cannot set value");
         }
@@ -251,11 +261,11 @@ export class ConfigurationSet {
      **************************/
 
     addSecret(secret: IConfigSecret): void {
-        if (this.has(secret.name)) {
+        if (this.has(secret.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${secret.name}`);
         }
 
-        this._secrets.set(secret.name, secret);
+        this._secrets.set(secret.name.toUpperCase(), secret);
     }
 
     addNewSecret(name: string, defaultValue: string | null, description: string): void {
@@ -266,15 +276,15 @@ export class ConfigurationSet {
           currentValue: defaultValue ?? ""
         };
 
-        if (this.has(secret.name)) {
+        if (this.has(secret.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${name}`);
         }
 
-        this._secrets.set(secret.name, secret);
+        this._secrets.set(secret.name.toUpperCase(), secret);
     }
 
     getSecret(secretName: string): IConfigSecret | null {
-        return this._secrets.get(secretName) ?? null;
+        return this._secrets.get(secretName.toUpperCase()) ?? null;
     }
 
     getAllSecrets(): IConfigSecret[] {
@@ -282,7 +292,7 @@ export class ConfigurationSet {
     }
 
     setSecretValue(secretName:string, value:string){
-        const secret: IConfigSecret | null = this._secrets.get(secretName) ?? null;
+        const secret: IConfigSecret | null = this._secrets.get(secretName.toUpperCase()) ?? null;
         if(!secret) {
             throw("secret does not exit, cannot set value");
         }

@@ -37,6 +37,7 @@ import axios, { AxiosResponse, AxiosInstance } from "axios";
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:()=>Promise<void>;
     private _client:AxiosInstance;
+    private _initialised = false;
 
     constructor(configSvcBaseUrl:string) {
         axios.defaults.baseURL = "http://localhost:3000";
@@ -48,6 +49,8 @@ export class DefaultConfigProvider implements IConfigProvider {
     }
 
     async boostrap(configSetDto:IConfigurationSet): Promise<boolean>{
+        this._checkInitialised();
+
         const resp: AxiosResponse<any> = await this._client.post("/configsets", configSetDto);
         console.log(resp.data);
 
@@ -55,11 +58,17 @@ export class DefaultConfigProvider implements IConfigProvider {
     }
 
     async init(): Promise<boolean>{
-
+        this._initialised = true;
         return true;
     }
 
+    private _checkInitialised(){
+        if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
+    }
+
     async fetch(bcName:string, appName:string, appVersion:number): Promise<IConfigurationSet | null>{
+        this._checkInitialised();
+
         let configSetData: IConfigurationSet;
         try {
             const resp = await this._client.get(`/configsets/${bcName}/${appName}/${appVersion}`);
@@ -83,7 +92,6 @@ export class DefaultConfigProvider implements IConfigProvider {
 
         return configSetData;
     }
-
 
     // this will be called by the IConfigProvider implementation when changes are detected
     setConfigChangeHandler(fn:()=>Promise<void>):void{
