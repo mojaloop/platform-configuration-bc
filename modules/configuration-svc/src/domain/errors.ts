@@ -30,6 +30,8 @@
 
 'use strict'
 
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+
 export class ConfigurationSetNotFoundError extends Error {}
 export class InvalidConfigurationSetError extends Error {}
 export class CannotCreateDuplicateConfigSetError extends Error {}

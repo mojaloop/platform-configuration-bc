@@ -31,46 +31,52 @@
 'use strict'
 
 import {
-    ConfigParameterTypes, IConfigFeatureFlag, IConfigParameter, IConfigSecret, IConfigurationSet, IConfigurationSetId
+    ConfigParameterTypes, ConfigFeatureFlag, ConfigParameter, ConfigSecret, ConfigurationSet
 } from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 
-export class ConfigurationSet {
+export class AppConfiguration {
     private readonly _configProvider:IConfigProvider;
-    private readonly _boundedContext: string;
-    private readonly _application: string;
-    private readonly _versionNumber: number;
-    private _patchNumber: number;
-    private readonly _params: Map<string, IConfigParameter>;
-    private readonly _featureFlags: Map<string, IConfigFeatureFlag>;
-    private readonly _secrets: Map<string, IConfigSecret>;
+    private readonly _environmentName: string;
+    private readonly _boundedContextName: string;
+    private readonly _applicationName: string;
+    private readonly _applicationVersion: string;
+    private _iterationNumber: number;
+    private readonly _parameters: Map<string, ConfigParameter>;
+    private readonly _featureFlags: Map<string, ConfigFeatureFlag>;
+    private readonly _secrets: Map<string, ConfigSecret>;
 
-    constructor(_boundedContext: string, _application: string, _version: number, configProvider:IConfigProvider) {
+    constructor(environmentName: string, boundedContext: string, application: string, version: string, configProvider:IConfigProvider) {
         this._configProvider = configProvider;
-        this._boundedContext = _boundedContext;
-        this._application = _application;
-        this._versionNumber = _version;
-        this._patchNumber = 0;
+        this._environmentName = environmentName;
+        this._boundedContextName = boundedContext;
+        this._applicationName = application;
+        this._applicationVersion = version;
+        this._iterationNumber = 0;
 
-        this._params = new Map<string, IConfigParameter>();
-        this._featureFlags = new Map<string, IConfigFeatureFlag>();
-        this._secrets = new Map<string, IConfigSecret>();
+        this._parameters = new Map<string, ConfigParameter>();
+        this._featureFlags = new Map<string, ConfigFeatureFlag>();
+        this._secrets = new Map<string, ConfigSecret>();
     }
 
-    get boundedContext(): string {
-        return this._boundedContext;
+    get environmentName(): string {
+        return this._environmentName;
     }
 
-    get application(): string {
-        return this._application;
+    get boundedContextName(): string {
+        return this._boundedContextName;
     }
 
-    get versionNumber(): number {
-        return this._versionNumber;
+    get applicationName(): string {
+        return this._applicationName;
     }
 
-    get patchNumber(): number {
-        return this._patchNumber;
+    get applicationVersion(): string {
+        return this._applicationVersion;
+    }
+
+    get iterationNumber(): number {
+        return this._iterationNumber;
     }
 
     async init(): Promise<void>{
@@ -79,13 +85,13 @@ export class ConfigurationSet {
         this._applyFromEnvVars();
     }
 
-    async fetch(versionNumber?:number): Promise<void>{
-        if(!versionNumber) versionNumber = this._versionNumber;
+    async fetch(versionNumber?:string): Promise<void>{
+        if(!versionNumber) versionNumber = this._applicationVersion;
 
-        const configSetDto:IConfigurationSet|null = await this._configProvider.fetch(this._boundedContext, this._application, versionNumber);
+        const configSetDto:ConfigurationSet|null = await this._configProvider.fetch(this._environmentName, this._boundedContextName, this._applicationName, versionNumber);
         if(null === configSetDto){
             // TODO log
-            throw new Error(`Could not fetch configurationSet for BC: ${this._boundedContext} - APP: ${this._application} - VERSION: ${this._versionNumber} - PATCH: ${this._patchNumber}`);
+            throw new Error(`Could not fetch configurationSet for BC: ${this._boundedContextName} - APP: ${this._applicationName} - VERSION: ${this._applicationVersion} - PATCH: ${this._iterationNumber}`);
         }
 
         // TODO check that ID matches
@@ -103,7 +109,7 @@ export class ConfigurationSet {
         let found = false;
         const upperCaseName = name.toUpperCase();
 
-        for (const key of this._params.keys()) {
+        for (const key of this._parameters.keys()) {
             if (key.toUpperCase()===upperCaseName) found = true;
         }
         for (const key of this._featureFlags.keys()) {
@@ -117,36 +123,35 @@ export class ConfigurationSet {
     }
 
     allKeys(): string[] {
-        return [...this._params.keys(), ...this._featureFlags.keys(), ...this._secrets.keys()];
+        return [...this._parameters.keys(), ...this._featureFlags.keys(), ...this._secrets.keys()];
     }
 
 
-    toJsonObj():IConfigurationSet{
+    toJsonObj():ConfigurationSet{
         return {
-            id:{
-                boundedContext: this._boundedContext,
-                application: this._application,
-                versionNumber: this._versionNumber,
-                patchNumber: this._patchNumber,
-            },
-            params: Array.from(this._params.values()),
+            environmentName: this.environmentName,
+            boundedContextName: this.boundedContextName,
+            applicationName: this.applicationName,
+            applicationVersion: this.applicationVersion,
+            iterationNumber: this.iterationNumber,
+            parameters: Array.from(this._parameters.values()),
             featureFlags: Array.from(this._featureFlags.values()),
             secrets: Array.from(this._secrets.values())
         }
     }
 
-    private _fromJsonObj(data:IConfigurationSet):void{
+    private _fromJsonObj(data:ConfigurationSet):void{
         // clear all first
-        this._params.clear();
+        this._parameters.clear();
         this._featureFlags.clear();
         this._secrets.clear();
 
         //this._boundedContext = data.id.boundedContext;
         //this._application = data.id.application;
         //this._versionNumber = data.id.versionNumber;
-        this._patchNumber = data.id.patchNumber;
+        this._iterationNumber = data.iterationNumber;
 
-        for(const param of data.params){
+        for(const param of data.parameters){
             this.addNewParam(param.name, param.type, param.defaultValue, param.description);
             this.setParamValue(param.name, param.currentValue);
         }
@@ -170,16 +175,16 @@ export class ConfigurationSet {
      * params
      **************************/
 
-    addParam(param: IConfigParameter): void {
+    addParam(param: ConfigParameter): void {
         if (this.has(param.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${param.name}`);
         }
 
-        this._params.set(param.name.toUpperCase(), param)
+        this._parameters.set(param.name.toUpperCase(), param)
     }
 
     addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void {
-        const param:IConfigParameter = {
+        const param:ConfigParameter = {
             name: name,
             type: type,
             defaultValue: defaultValue,
@@ -193,19 +198,19 @@ export class ConfigurationSet {
             throw new Error(`Duplicate config name detected - name: ${name}`);
         }
 
-        this._params.set(param.name.toUpperCase(), param);
+        this._parameters.set(param.name.toUpperCase(), param);
     }
 
-    getParam(paramName: string): IConfigParameter | null {
-        return this._params.get(paramName.toUpperCase()) ?? null;
+    getParam(paramName: string): ConfigParameter | null {
+        return this._parameters.get(paramName.toUpperCase()) ?? null;
     }
 
-    getAllParams(): IConfigParameter[] {
-        return Array.from(this._params.values());
+    getAllParams(): ConfigParameter[] {
+        return Array.from(this._parameters.values());
     }
 
     setParamValue(paramName:string, value:any){
-        const param: IConfigParameter | null = this._params.get(paramName.toUpperCase()) ?? null;
+        const param: ConfigParameter | null = this._parameters.get(paramName.toUpperCase()) ?? null;
         if(!param) {
             throw("param does not exit, cannot set value");
         }
@@ -217,7 +222,7 @@ export class ConfigurationSet {
      * feature flags
      **************************/
 
-    addFeatureFlag(featureFlag: IConfigFeatureFlag): void {
+    addFeatureFlag(featureFlag: ConfigFeatureFlag): void {
         if (this.has(featureFlag.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${featureFlag.name}`);
         }
@@ -226,7 +231,7 @@ export class ConfigurationSet {
     }
 
     addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void {
-        const featureFlag:IConfigFeatureFlag = {
+        const featureFlag:ConfigFeatureFlag = {
             name: name,
             defaultValue: defaultValue,
             description: description,
@@ -239,16 +244,16 @@ export class ConfigurationSet {
         this._featureFlags.set(featureFlag.name.toUpperCase(), featureFlag);
     }
 
-    getFeatureFlag(featureFlagName: string): IConfigFeatureFlag | null {
+    getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null {
         return this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
     }
 
-    getAllFeatureFlags(): IConfigFeatureFlag[] {
+    getAllFeatureFlags(): ConfigFeatureFlag[] {
         return Array.from(this._featureFlags.values());
     }
 
     setFeatureFlagValue(featureFlagName:string, value:boolean){
-        const featureFlag: IConfigFeatureFlag | null = this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
+        const featureFlag: ConfigFeatureFlag | null = this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
         if(!featureFlag) {
             throw("featureFlag does not exit, cannot set value");
         }
@@ -260,7 +265,7 @@ export class ConfigurationSet {
      * secrets
      **************************/
 
-    addSecret(secret: IConfigSecret): void {
+    addSecret(secret: ConfigSecret): void {
         if (this.has(secret.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${secret.name}`);
         }
@@ -269,7 +274,7 @@ export class ConfigurationSet {
     }
 
     addNewSecret(name: string, defaultValue: string | null, description: string): void {
-        const secret:IConfigSecret = {
+        const secret:ConfigSecret = {
           name: name,
           defaultValue: defaultValue,
           description: description,
@@ -283,16 +288,16 @@ export class ConfigurationSet {
         this._secrets.set(secret.name.toUpperCase(), secret);
     }
 
-    getSecret(secretName: string): IConfigSecret | null {
+    getSecret(secretName: string): ConfigSecret | null {
         return this._secrets.get(secretName.toUpperCase()) ?? null;
     }
 
-    getAllSecrets(): IConfigSecret[] {
+    getAllSecrets(): ConfigSecret[] {
         return Array.from(this._secrets.values());
     }
 
     setSecretValue(secretName:string, value:string){
-        const secret: IConfigSecret | null = this._secrets.get(secretName.toUpperCase()) ?? null;
+        const secret: ConfigSecret | null = this._secrets.get(secretName.toUpperCase()) ?? null;
         if(!secret) {
             throw("secret does not exit, cannot set value");
         }

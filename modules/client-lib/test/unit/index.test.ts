@@ -2,15 +2,16 @@
 
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 import axios, {AxiosResponse} from "axios";
-import {ConfigurationSet, DefaultConfigProvider} from "../../";
+import {AppConfiguration, DefaultConfigProvider} from "../../src/index";
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
 
+const ENV_NAME = "dev";
 const BC_NAME = "platform-configuration";
 const APP_NAME = "platform-configuration-client-lib";
-const CONFIGSET_VERSION = 1;
+const CONFIGSET_VERSION = "0.0.1";
 const CONFIG_SVC_BASEURL = "http://localhost:3000";
 
-let configSet: ConfigurationSet;
+let appConfiguration: AppConfiguration;
 let defaultConfigProvider: DefaultConfigProvider;
 
 
@@ -25,45 +26,45 @@ describe('client-lib ConfigurationSet tests', () => {
         // Cleanup
     })
 
-    test('Create ConfigurationSet', async () => {
+    test('Create AppConfiguration', async () => {
         // Setup
         defaultConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
         expect(defaultConfigProvider).toBeDefined()
         expect(defaultConfigProvider).not.toBeNull()
 
-        configSet = new ConfigurationSet(BC_NAME, APP_NAME, CONFIGSET_VERSION, defaultConfigProvider);
-        expect(configSet).not.toBeNull()
-        expect(configSet.getAllParams().length).toEqual(0);
-        expect(configSet.getAllFeatureFlags().length).toEqual(0);
-        expect(configSet.getAllSecrets().length).toEqual(0);
+        appConfiguration = new AppConfiguration(ENV_NAME, BC_NAME, APP_NAME, CONFIGSET_VERSION, defaultConfigProvider);
+        expect(appConfiguration).not.toBeNull()
+        expect(appConfiguration.getAllParams().length).toEqual(0);
+        expect(appConfiguration.getAllFeatureFlags().length).toEqual(0);
+        expect(appConfiguration.getAllSecrets().length).toEqual(0);
 
         /// params
-        configSet.addNewParam("boolParam1", ConfigParameterTypes.BOOL, true, "description bool param 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllParams().length).toEqual(1);
-        configSet.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllParams().length).toEqual(2);
-        configSet.addNewParam("intParam1", ConfigParameterTypes.INT_NUMBER, 5, "description int number param 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllParams().length).toEqual(3);
-        configSet.addNewParam("floatParam1", ConfigParameterTypes.FLOAT_NUMBER, 3.1415, "description float number param 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllParams().length).toEqual(4);
+        appConfiguration.addNewParam("boolParam1", ConfigParameterTypes.BOOL, true, "description bool param 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllParams().length).toEqual(1);
+        appConfiguration.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllParams().length).toEqual(2);
+        appConfiguration.addNewParam("intParam1", ConfigParameterTypes.INT_NUMBER, 5, "description int number param 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllParams().length).toEqual(3);
+        appConfiguration.addNewParam("floatParam1", ConfigParameterTypes.FLOAT_NUMBER, 3.1415, "description float number param 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllParams().length).toEqual(4);
 
         /// feature flags
-        configSet.addNewFeatureFlag("featureFlag1", false, "description feature flag 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllFeatureFlags().length).toEqual(1);
+        appConfiguration.addNewFeatureFlag("featureFlag1", false, "description feature flag 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllFeatureFlags().length).toEqual(1);
 
         /// secrets
-        configSet.addNewSecret("secret1", "password", "description secret 1 - v"+CONFIGSET_VERSION);
-        expect(configSet.getAllSecrets().length).toEqual(1);
+        appConfiguration.addNewSecret("secret1", "password", "description secret 1 - v"+CONFIGSET_VERSION);
+        expect(appConfiguration.getAllSecrets().length).toEqual(1);
 
-        //console.log(configSet.toJsonObj());
+        //console.log(appConfiguration.toJsonObj());
 
-        expect(configSet.versionNumber).toBe(CONFIGSET_VERSION);
-        expect(configSet.patchNumber).toBe(0);
+        expect(appConfiguration.applicationVersion).toBe(CONFIGSET_VERSION);
+        expect(appConfiguration.iterationNumber).toBe(0);
     });
 
 
     test('Test params - defaults and current values', async () => {
-        const boolParam1 = configSet.getParam("boolParam1");
+        const boolParam1 = appConfiguration.getParam("boolParam1");
         expect(boolParam1).not.toBeNull()
         if(boolParam1) { // to avoid typecript can be null check
             expect(boolParam1.name).toBe("boolParam1")
@@ -72,7 +73,7 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(boolParam1.currentValue).toBe(true);
         }
 
-        const stringParam1 = configSet.getParam("stringParam1");
+        const stringParam1 = appConfiguration.getParam("stringParam1");
         expect(stringParam1).not.toBeNull()
         if(stringParam1) { // to avoid typecript can be null check
             expect(stringParam1.name).toBe("stringParam1")
@@ -81,7 +82,7 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(stringParam1.currentValue).toBe("default val");
         }
 
-        const intParam1 = configSet.getParam("intParam1");
+        const intParam1 = appConfiguration.getParam("intParam1");
         expect(intParam1).not.toBeNull()
         if(intParam1) { // to avoid typecript can be null check
             expect(intParam1.name).toBe("intParam1")
@@ -90,7 +91,7 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(intParam1.currentValue).toBe(5);
         }
 
-        const floatParam1 = configSet.getParam("floatParam1");
+        const floatParam1 = appConfiguration.getParam("floatParam1");
         expect(floatParam1).not.toBeNull()
         if(floatParam1) { // to avoid typecript can be null check
             expect(floatParam1.name).toBe("floatParam1")
@@ -101,7 +102,7 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
     test('Test feature flags - defaults and current values', async () => {
-        const featureFlag1 = configSet.getFeatureFlag("featureFlag1");
+        const featureFlag1 = appConfiguration.getFeatureFlag("featureFlag1");
         expect(featureFlag1).not.toBeNull()
         if(featureFlag1) { // to avoid typecript can be null check
             expect(featureFlag1.name).toBe("featureFlag1")
@@ -111,7 +112,7 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
     test('Test secrets - defaults and current values', async () => {
-        const secret1 = configSet.getSecret("secret1");
+        const secret1 = appConfiguration.getSecret("secret1");
         expect(secret1).not.toBeNull()
         if(secret1) { // to avoid typecript can be null check
             expect(secret1.name).toBe("secret1")
@@ -122,8 +123,8 @@ describe('client-lib ConfigurationSet tests', () => {
 
 
     test('Test params - set value', async () => {
-        configSet.setParamValue("boolParam1", false);
-        const boolParam1 = configSet.getParam("boolParam1");
+        appConfiguration.setParamValue("boolParam1", false);
+        const boolParam1 = appConfiguration.getParam("boolParam1");
         expect(boolParam1).not.toBeNull()
         if(boolParam1) { // to avoid typecript can be null check
             expect(boolParam1.type).toBe(ConfigParameterTypes.BOOL)
@@ -131,8 +132,8 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(boolParam1.currentValue).toBe(false);
         }
 
-        configSet.setParamValue("stringParam1", "new val");
-        const stringParam1 = configSet.getParam("stringParam1");
+        appConfiguration.setParamValue("stringParam1", "new val");
+        const stringParam1 = appConfiguration.getParam("stringParam1");
         expect(stringParam1).not.toBeNull()
         if(stringParam1) { // to avoid typecript can be null check
             expect(stringParam1.name).toBe("stringParam1")
@@ -141,8 +142,8 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(stringParam1.currentValue).toBe("new val");
         }
 
-        configSet.setParamValue("intParam1", 10);
-        const intParam1 = configSet.getParam("intParam1");
+        appConfiguration.setParamValue("intParam1", 10);
+        const intParam1 = appConfiguration.getParam("intParam1");
         expect(intParam1).not.toBeNull()
         if(intParam1) { // to avoid typecript can be null check
             expect(intParam1.name).toBe("intParam1")
@@ -151,8 +152,8 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(intParam1.currentValue).toBe(10);
         }
 
-        configSet.setParamValue("floatParam1", 1.618);
-        const floatParam1 = configSet.getParam("floatParam1");
+        appConfiguration.setParamValue("floatParam1", 1.618);
+        const floatParam1 = appConfiguration.getParam("floatParam1");
         expect(floatParam1).not.toBeNull()
         if(floatParam1) { // to avoid typecript can be null check
             expect(floatParam1.name).toBe("floatParam1")
@@ -163,8 +164,8 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
     test('Test feature flags - set value', async () => {
-        configSet.setFeatureFlagValue("featureFlag1", true);
-        const featureFlag1 = configSet.getFeatureFlag("featureFlag1");
+        appConfiguration.setFeatureFlagValue("featureFlag1", true);
+        const featureFlag1 = appConfiguration.getFeatureFlag("featureFlag1");
         expect(featureFlag1).not.toBeNull()
         if(featureFlag1) { // to avoid typecript can be null check
             expect(featureFlag1.name).toBe("featureFlag1")
@@ -174,8 +175,8 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
     test('Test secrets - set value', async () => {
-        configSet.setSecretValue("secret1", "evenbetterpass");
-        const secret1 = configSet.getSecret("secret1");
+        appConfiguration.setSecretValue("secret1", "evenbetterpass");
+        const secret1 = appConfiguration.getSecret("secret1");
         expect(secret1).not.toBeNull()
         if(secret1) { // to avoid typecript can be null check
             expect(secret1.name).toBe("secret1")
@@ -185,7 +186,7 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
     /*  test('fetch', async () => {
-        await configSet.fetch();
+        await appConfiguration.fetch();
 
      })*/
 })

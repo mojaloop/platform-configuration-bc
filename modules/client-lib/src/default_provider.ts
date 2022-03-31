@@ -30,7 +30,7 @@
 
 'use strict'
 
-import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance } from "axios";
 
@@ -48,10 +48,10 @@ export class DefaultConfigProvider implements IConfigProvider {
         })
     }
 
-    async boostrap(configSetDto:IConfigurationSet): Promise<boolean>{
+    async boostrap(configSetDto:ConfigurationSet): Promise<boolean>{
         this._checkInitialised();
 
-        const resp: AxiosResponse<any> = await this._client.post("/configsets", configSetDto);
+        const resp: AxiosResponse<any> = await this._client.post("/bootstrap", configSetDto);
         console.log(resp.data);
 
         return true;
@@ -66,12 +66,12 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
-    async fetch(bcName:string, appName:string, appVersion:number): Promise<IConfigurationSet | null>{
+    async fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<ConfigurationSet | null>{
         this._checkInitialised();
 
-        let configSetData: IConfigurationSet;
+        let configSetData: ConfigurationSet;
         try {
-            const resp = await this._client.get(`/configsets/${bcName}/${appName}/${appVersion}`);
+            const resp = await this._client.get(`/configsets/${envName}/${bcName}/${appName}?version=${appVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
@@ -82,10 +82,10 @@ export class DefaultConfigProvider implements IConfigProvider {
             return null;
         }
 
-        if(configSetData.id.boundedContext.toUpperCase() !== bcName.toUpperCase()
-                || configSetData.id.application.toUpperCase() !== appName.toUpperCase()
-                || configSetData.id.versionNumber != appVersion
-                || configSetData.id.patchNumber < 0){
+        if(configSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
+                || configSetData.applicationName.toUpperCase() !== appName.toUpperCase()
+                || configSetData.applicationVersion != appVersion
+                || configSetData.iterationNumber < 0){
             console.warn("invalid configSet version received");
             return null;
         }

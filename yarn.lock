@@ -1567,6 +1567,7 @@ __metadata:
     "@types/jest": ^27.0.3
     "@types/node": ^16.11.9
     "@types/node-cache": ^4.2.5
+    "@types/semver": ^7.3.9
     "@typescript-eslint/eslint-plugin": ^5.4.0
     eslint: ^8.3.0
     eslint-config-prettier: ^8.3.0
@@ -1582,6 +1583,7 @@ __metadata:
     npm-check-updates: ^12.0.2
     nyc: ^15.1.0
     pre-commit: ^1.2.2
+    semver: ^7.3.5
     ts-jest: ^27.0.7
     typedoc: ^0.22.9
     typescript: ^4.5.0
@@ -2191,6 +2193,13 @@ __metadata:
   dependencies:
     "@types/node": "*"
   checksum: e99fc7cc6265407987b30deda54c1c24bb1478803faf6037557a774b2f034c5b097ffd65847daa87e82a61a250d919f35c3588654b0fdaa816906650f596d1b0
+  languageName: node
+  linkType: hard
+
+"@types/semver@npm:^7.3.9":
+  version: 7.3.9
+  resolution: "@types/semver@npm:7.3.9"
+  checksum: 60bfcfdfa7f937be2c6f4b37ddb6714fb0f27b05fe4cbdfdd596a97d35ed95d13ee410efdd88e72a66449d0384220bf20055ab7d6b5df10de4990fbd20e5cbe0
   languageName: node
   linkType: hard
 

@@ -28,11 +28,11 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
-
+import semver from "semver";
 import {IConfigSetRepository} from "./iconfigset_repo";
-import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigItemTypes, ConfigParameterTypes, ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-logging-client-lib/dist/index";
 import {
     CannotCreateOverridePreviousVersionConfigSetError,
@@ -41,6 +41,10 @@ import {
     CouldNotStoreConfigSetError,
     ParameterNotFoundError, InvalidConfigurationSetError
 } from "./errors";
+import {ConfigSetChangeValuesCmdPayload} from "./commands";
+
+
+
 
 export class ConfigSetAggregate {
     private _logger: ILogger;
@@ -51,82 +55,123 @@ export class ConfigSetAggregate {
         this._logger = logger;
     }
 
-    private async _notifyConfigSetChange(configSet:IConfigurationSet){
+    private async _notifyConfigSetChange(configSet:ConfigurationSet){
         // TODO _notifyConfigSetChange
     }
 
-    private _validateConfigSet(configSet:IConfigurationSet):boolean{
-        if(!configSet.id || !configSet.params || !configSet.featureFlags || !configSet.secrets){
+    private _validateConfigSet(configSet:ConfigurationSet):boolean{
+        if(!configSet.environmentName
+                || !configSet.applicationName
+                || !configSet.boundedContextName
+                || !configSet.applicationVersion) {
             return false;
         }
 
-        if(!configSet.id.application || !configSet.id.boundedContext ) {
+        if(!configSet.parameters || !configSet.featureFlags || !configSet.secrets){
             return false;
         }
 
-        if(configSet.id.versionNumber < 0 ) {
+        if(!Array.isArray(configSet.parameters)
+            || !Array.isArray(configSet.featureFlags)
+            || !Array.isArray(configSet.secrets)){
+            return false;
+        }
+
+        if(!configSet.applicationVersion || typeof(configSet.applicationVersion) !== "string"){
+            return false;
+        }
+        const parsed = semver.coerce(configSet.applicationVersion);
+        if(!parsed || parsed.raw != configSet.applicationVersion) {
+            // the 2nd check assures that formats like "v1.0.1" which are considered valid by semver are rejected, we want strict semver
             return false;
         }
 
         return true;
     }
 
-    async createNewConfigSetVersion(configSet:IConfigurationSet):Promise<void>{
-        // TODO validate the configSet
-        if(!this._validateConfigSet(configSet)){
-            this._logger.warn(`invalid configuration set for BC: ${configSet.id.boundedContext}, APP: ${configSet.id.application}, version: ${configSet.id.versionNumber} and patch: ${configSet.id.patchNumber}, ERROR `);
-            return Promise.reject(new InvalidConfigurationSetError());
-        }
-
-        const latestVersion: IConfigurationSet | null = await this._repo.fetchLatest(configSet.id.boundedContext, configSet.id.application);
-
-        if(latestVersion && latestVersion.id.versionNumber == configSet.id.versionNumber) {
-            this._logger.warn(`received duplicate configuration set for BC: ${configSet.id.boundedContext}, APP: ${configSet.id.application}, version: ${configSet.id.versionNumber} and patch: ${configSet.id.patchNumber}, IGNORING `);
-            return Promise.reject(new CannotCreateDuplicateConfigSetError());
-        }else if(latestVersion && latestVersion.id.versionNumber > configSet.id.versionNumber) {
-            this._logger.error(`received configuration set with lower version than latest for BC: ${configSet.id.boundedContext}, APP: ${configSet.id.application}, version: ${configSet.id.versionNumber} and patch: ${configSet.id.patchNumber}, IGNORING with error`);
-            return Promise.reject(new CannotCreateOverridePreviousVersionConfigSetError());
-        }
-
-
-        //TODO apply default values - if creating a new version, the current values should be copied from the old version
-        if(!configSet.id.patchNumber) configSet.id.patchNumber = 0;
-
-        this._logger.info(`received configuration set for BC: ${configSet.id.boundedContext}, APP: ${configSet.id.application}, version: ${configSet.id.versionNumber} and patch: ${configSet.id.patchNumber}`);
-        const stored = await this._repo.store(configSet);
-        if(!stored){
-            return Promise.reject(new CouldNotStoreConfigSetError());
-        }
-
-        await this._notifyConfigSetChange(configSet);
-    }
-
-    async getLatestVersion(bcName: string, appName: string):Promise<IConfigurationSet | null>{
-        const latestVersion: IConfigurationSet | null = await this._repo.fetchLatest(bcName, appName);
+    async getLatestVersion(envName:string, bcName: string, appName: string):Promise<ConfigurationSet | null>{
+        const latestVersion: ConfigurationSet | null = await this._repo.fetchLatest(envName, bcName, appName);
         return latestVersion;
     }
 
-    async getSpecificVersion(bcName: string, appName: string, version:number):Promise<IConfigurationSet | null>{
-        const specificVersion: IConfigurationSet | null = await this._repo.fetchVersion(bcName, appName, version);
+    async getSpecificVersion(envName:string, bcName: string, appName: string, version:string):Promise<ConfigurationSet | null>{
+        const specificVersion: ConfigurationSet | null = await this._repo.fetchVersion(envName, bcName, appName, version);
 
         return specificVersion;
     }
 
-    async updateParamValue(bcName: string, appName: string, paramName:string, paramValue:string):Promise<void>{
-        // TODO validate paramName and paramValue
+    async processCreateConfigSetCmd(configSet:ConfigurationSet):Promise<void>{
+        // TODO validate the configSet
+        if(!this._validateConfigSet(configSet)){
+            this._logger.warn(`invalid configuration set for BC: ${configSet?.boundedContextName}, APP: ${configSet?.applicationName}, version: ${configSet?.applicationVersion} and iterationNumber: ${configSet?.iterationNumber}, ERROR `);
+            throw new InvalidConfigurationSetError();
+        }
 
-        const configSet = await this.getLatestVersion(bcName, appName);
+        const latestVersion: ConfigurationSet | null = await this._repo.fetchLatest(configSet.environmentName, configSet.boundedContextName, configSet.applicationName);
+
+        if(latestVersion && semver.compare(latestVersion.applicationVersion, configSet.applicationVersion) == 0) {
+            this._logger.warn(`received duplicate configuration set for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING `);
+            throw new CannotCreateDuplicateConfigSetError();
+        }else if(latestVersion && semver.compare(latestVersion.applicationVersion, configSet.applicationVersion)  == 1) {
+            this._logger.error(`received configuration set with lower version than latest for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING with error`);
+            throw new CannotCreateOverridePreviousVersionConfigSetError();
+        }
+
+
+        //TODO apply default values - if creating a new version, the current values should be copied from the old version
+        if(!configSet.iterationNumber) configSet.iterationNumber = 0;
+
+        this._logger.info(`received configuration set for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}`);
+        const stored = await this._repo.store(configSet);
+        if(!stored){
+            throw new CouldNotStoreConfigSetError();
+        }
+
+        await this._notifyConfigSetChange(configSet);
+    }
+
+
+    async processChangeValuesCmd(cmdPayload: ConfigSetChangeValuesCmdPayload):Promise<void> {
+        let configSet:ConfigurationSet | null;
+        if (!cmdPayload.version){
+            configSet = await this.getLatestVersion(cmdPayload.environmentName, cmdPayload.boundedContextName, cmdPayload.applicationName);
+        }else{
+            configSet = await this.getSpecificVersion(cmdPayload.environmentName, cmdPayload.boundedContextName, cmdPayload.applicationName, cmdPayload.version);
+        }
+
         if(!configSet){
             return Promise.reject(new ConfigurationSetNotFoundError());
         }
-        const param = configSet.params.find(value => value.name.toUpperCase() === paramName.toUpperCase());
 
-        if(!param){
-            return Promise.reject(new ParameterNotFoundError());
-        }
-        param.currentValue = paramValue;
+        // TODO return multiple errors instead of just one
 
-        configSet.id.patchNumber++;
+        cmdPayload.newValues.forEach((value) => {
+            if(value.type.toUpperCase() === ConfigItemTypes.PARAMETER){
+                const param = configSet!.parameters.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                if(!param){
+                    return Promise.reject( new ParameterNotFoundError());
+                }
+                param.currentValue = value.value;
+            }else if(value.type.toUpperCase() === ConfigItemTypes.FEATUREFLAG){
+                const featureFlag = configSet!.featureFlags.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                if(!featureFlag){
+                    return Promise.reject( new ParameterNotFoundError());
+                }
+                featureFlag.currentValue = value.value;
+            }else if(value.type.toUpperCase() === ConfigItemTypes.SECRET){
+                const secret = configSet!.secrets.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                if(!secret){
+                    return Promise.reject( new ParameterNotFoundError());
+                }
+                secret.currentValue = value.value;
+            }else {
+                return Promise.reject( new ParameterNotFoundError());
+            }
+            return;
+        });
+
+
+        configSet.iterationNumber++;
         const stored = await this._repo.store(configSet);
         if(!stored){
             return Promise.reject(new CouldNotStoreConfigSetError());
@@ -135,11 +180,4 @@ export class ConfigSetAggregate {
         await this._notifyConfigSetChange(configSet);
     }
 
-    async updateFeatureFlagValue(bcName: string, appName: string,  featureFlagName:string, featureFlagValue:boolean):Promise<void>{
-
-    }
-
-    async updateSecretValue(bcName: string, appName: string,  secretName:string, secretValue:string):Promise<void>{
-
-    }
 }

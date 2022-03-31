@@ -32,8 +32,8 @@
 
 import express from "express";
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
-import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
-import {InMemoryConfigSetRepo} from "../infrastructure/inmemory_configset_repo";
+import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
 import {ConfigSetAggregate} from "../domain/configset_agg";
 
 import {
@@ -41,147 +41,149 @@ import {
     CannotCreateOverridePreviousVersionConfigSetError,
     ConfigurationSetNotFoundError, CouldNotStoreConfigSetError, InvalidConfigurationSetError, ParameterNotFoundError
 } from "../domain/errors";
+import {ConfigSetChangeValuesCmdPayload} from "../domain/commands";
 
 const logger: ILogger = new ConsoleLogger();
-const repo: InMemoryConfigSetRepo = new InMemoryConfigSetRepo(logger);
+const repo: FileConfigSetRepo = new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
 const configSetAgg: ConfigSetAggregate = new ConfigSetAggregate(repo, logger);
 
 const app = express();
 
-app.use(express.json()); // for parsing application/json
-app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
+function setupExpress() {
+    app.use(express.json()); // for parsing application/json
+    app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
+}
 
-app.post("/configsets", async (req: express.Request, res: express.Response, next: express.NextFunction)=> {
-    const data: IConfigurationSet = req.body;
-    logger.debug(data);
+function setupRoutes() {
 
-    await configSetAgg.createNewConfigSetVersion(data).then((success) => {
-        res.status(200).json({status: "ok"});
-    }).catch((error:Error) => {
-        if(error instanceof CannotCreateDuplicateConfigSetError) {
-            res.status(400).json({
-                status: "error",
-                msg: "received duplicated configuration, cannot update"
-            });
-        }else if(error instanceof CannotCreateOverridePreviousVersionConfigSetError){
-            res.status(400).json({
-                status: "error",
-                msg: "received configuration has lower id than latest available, cannot update"
-            });
-        }else if(error instanceof InvalidConfigurationSetError){
-            res.status(400).json({
-                status: "error",
-                msg: "invalid configuration set"
-            });
-        }else{
-            res.status(400).json({
-                status: "error",
-                msg: "unknown error"
-            });
-        }
+    app.post("/bootstrap", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+        const data: ConfigurationSet = req.body;
+        logger.debug(data);
+
+        await configSetAgg.processCreateConfigSetCmd(data).then((success) => {
+            res.status(200).json({status: "ok"});
+        }).catch((error: Error) => {
+            if (error instanceof CannotCreateDuplicateConfigSetError) {
+                res.status(400).json({
+                    status: "error",
+                    msg: "received duplicated configuration, cannot update"
+                });
+            } else if (error instanceof CannotCreateOverridePreviousVersionConfigSetError) {
+                res.status(400).json({
+                    status: "error",
+                    msg: "received configuration has lower id than latest available, cannot update"
+                });
+            } else if (error instanceof InvalidConfigurationSetError) {
+                res.status(400).json({
+                    status: "error",
+                    msg: "invalid configuration set"
+                });
+            } else {
+                res.status(500).json({
+                    status: "error",
+                    msg: "unknown error"
+                });
+            }
+        });
     });
-});
 
-app.get("/configsets/:bc/:app/:version?", async (req: express.Request, res: express.Response, next: express.NextFunction)=> {
-    const ownerBcParam = req.params["bc"] ?? null;
-    const ownerAppParam = req.params["app"] ?? null;
-    const versionParam = req.params["version"] ?? -1;
+    app.get("/configsets/:env/:bc/:app", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+        const envParam = req.params["env"] ?? null;
+        const ownerBcParam = req.params["bc"] ?? null;
+        const ownerAppParam = req.params["app"] ?? null;
+        // optional query param
+        const versionParam = req.query["version"]?.toString() ?? null;
 
-    // validate
-    if (!ownerBcParam || ownerBcParam === "" || !ownerAppParam || ownerAppParam === "" || isNaN(parseInt(versionParam))){
-        logger.warn("Invalid configset request received");
-        return res.status(400).send();
-    }
-
-    let retConfigSet: IConfigurationSet | null;
-    const version = parseInt(versionParam);
-
-    if(version == -1){
-        retConfigSet = await configSetAgg.getLatestVersion(ownerBcParam, ownerAppParam);
-    } else {
-        retConfigSet = await configSetAgg.getSpecificVersion(ownerBcParam, ownerAppParam, version);
-    }
-
-    if(!retConfigSet){
-        logger.debug("configset not found");
-        return res.status(404).send();
-    }
-    return res.status(200).json(retConfigSet);
-});
-
-app.patch("/configsets/:bc/:app/:valtype/:paramname", async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<any> => {
-    const ownerBcParam = req.params["bc"] ?? null;
-    const ownerAppParam = req.params["app"] ?? null;
-
-    const valtypeParam = req.params["valtype"] ?? null;
-    const paramNameParam = req.params["paramname"] ?? null;
-    const data:any = req.body;
-
-    let invalidReq = false;
-    // validate owner, app and version
-    if (!ownerBcParam || ownerBcParam === "" || !ownerAppParam || ownerAppParam === ""){
-        invalidReq = true;
-    }
-
-    if (!valtypeParam || (valtypeParam.toUpperCase() !== "PARAM" && valtypeParam.toUpperCase() !== "FEATUREFLAG" && valtypeParam.toUpperCase() !== "SECRET")){
-        invalidReq = true;
-    }
-
-    if (!paramNameParam || paramNameParam === ""){
-        invalidReq = true;
-    }
-
-    if (!data || data["value"] === undefined){
-        invalidReq = true;
-    }
-
-    if(invalidReq){
-        logger.debug("invalid request received to patch configSet");
-        return res.status(400).send({status: "error", msg: "invalid request received"});
-    }
-
-
-    let fn: (bcName: string, appName: string, paramName:string, paramValue:any)=>Promise<void>;
-    if(valtypeParam.toUpperCase() === "PARAM"){
-        fn = configSetAgg.updateParamValue.bind(configSetAgg);//(ownerBcParam, ownerAppParam, version, paramNameParam, data["value"]);
-    }else if(valtypeParam.toUpperCase() === "FEATUREFLAG"){
-        fn = configSetAgg.updateFeatureFlagValue.bind(configSetAgg);//(ownerBcParam, ownerAppParam, version, paramNameParam, data["value"]);
-    }else if(valtypeParam.toUpperCase() === "SECRET"){
-        fn = configSetAgg.updateParamValue.bind(configSetAgg);//(ownerBcParam, ownerAppParam, version, paramNameParam, data["value"]);
-    }else{
-        logger.error("invalid request received to patch configSet");
-        return res.status(400).send({status: "error", msg: "invalid request received"});
-    }
-
-    await fn(ownerBcParam, ownerAppParam, paramNameParam, data["value"]).then(()=> {
-        return res.status(200).send({status: "ok"});
-    }).catch((error:Error)=>{
-        let statusCode = 400;
-        let errorMsg:string;
-        if(error instanceof ConfigurationSetNotFoundError) {
-            statusCode = 404;
-            errorMsg = "ConfigurationSetNotFoundError";
-        }else if(error instanceof CouldNotStoreConfigSetError){
-            errorMsg = "CouldNotStoreConfigSetError";
-        }else{
-            errorMsg = "unkonwn error";
+        // validate
+        if (!envParam || envParam==="" || !ownerBcParam || ownerBcParam==="" || !ownerAppParam || ownerAppParam==="") {
+            logger.warn("Invalid configset request received");
+            return res.status(400).send();
         }
-        return res.status(statusCode).send({status: "error", msg: errorMsg});
+
+        let retConfigSet: ConfigurationSet | null;
+
+        if (!versionParam) {
+            retConfigSet = await configSetAgg.getLatestVersion(envParam, ownerBcParam, ownerAppParam);
+        } else {
+            retConfigSet = await configSetAgg.getSpecificVersion(envParam, ownerBcParam, ownerAppParam, versionParam);
+        }
+
+        if (!retConfigSet) {
+            logger.debug("configset not found");
+            return res.status(404).send();
+        }
+        return res.status(200).json(retConfigSet);
+    });
+
+    app.post("/configsets/:env/:bc/:app/setvalues", async (req: express.Request, res: express.Response, next: express.NextFunction): Promise<any> => {
+        const envParam = req.params["env"] ?? null;
+        const ownerBcParam = req.params["bc"] ?? null;
+        const ownerAppParam = req.params["app"] ?? null;
+
+        // optional query param
+        const versionParam = req.query["version"]?.toString() ?? null;
+
+
+        let invalidReq = false;
+        // validate owner, app and version
+        if (!envParam || envParam==="" || !ownerBcParam || ownerBcParam==="" || !ownerAppParam || ownerAppParam==="") {
+            invalidReq = true;
+        }
+
+        const cmdPayload: ConfigSetChangeValuesCmdPayload = {
+            environmentName: envParam,
+            boundedContextName: ownerBcParam,
+            applicationName: ownerAppParam,
+            version: null, // disallow updates to older versions for now
+            newValues: req.body
+        };
+
+
+        await configSetAgg.processChangeValuesCmd(cmdPayload).then(()=>{
+            return res.status(200).send({status: "ok"});
+        }).catch(error => {
+            // TODO should return multiple errors
+            if (error instanceof ConfigurationSetNotFoundError) {
+                res.status(404).json({
+                    status: "error",
+                    msg: "configuration set not found"
+                });
+            }else if (error instanceof ParameterNotFoundError) {
+                res.status(404).json({
+                    status: "error",
+                    msg: "parameter set not found"
+                });
+            }else if (error instanceof CouldNotStoreConfigSetError) {
+                res.status(400).json({
+                    status: "error",
+                    msg: "Not able to store configuration set"
+                });
+            }else{
+                res.status(500).json({
+                    status: "error",
+                    msg: "unknown error"
+                });
+            }
+        });
+
+    });
+
+    app.use((req, res) => {
+        // catch all
+        res.send(404);
     })
+}
 
+async function start():Promise<void> {
+    await repo.init();
 
-});
+    setupExpress();
+    setupRoutes();
 
-app.use((req, res) => {
-    // catch all
-    res.send(404);
-})
-
-
-const server = app.listen(3000, () =>
-        console.log(`
-🚀 Server ready at: http://localhost:3000`),
-)
+    const server = app.listen(3000, () =>
+            console.log(`🚀 Server ready at: http://localhost:3000`),
+    );
+}
 
 async function _handle_int_and_term_signals(signal: NodeJS.Signals): Promise<void> {
     logger.info(`Service - ${signal} received - cleaning up...`);
@@ -199,3 +201,4 @@ process.on('exit', () => {
     logger.info("Microservice - exiting...");
 });
 
+start();

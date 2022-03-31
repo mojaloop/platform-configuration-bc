@@ -30,12 +30,12 @@
 
 'use strict'
 
-import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 
 export interface IConfigProvider {
   init(): Promise<boolean>
-  boostrap(configSetDto:IConfigurationSet): Promise<boolean>;
-  fetch(bcName:string, appName:string, appVersion:number): Promise<IConfigurationSet | null>
+  boostrap(configSetDto:ConfigurationSet): Promise<boolean>;
+  fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<ConfigurationSet | null>
 
   // this will be called by the IConfigProvider implementation when changes are detected
   setConfigChangeHandler(fn:()=>Promise<void>):void;

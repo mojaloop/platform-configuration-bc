@@ -28,14 +28,15 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
-import {IConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 
 export interface IConfigSetRepository {
-    store(configSet:IConfigurationSet):Promise<boolean>;
-    fetchLatest(bcName:string, appName:string):Promise<IConfigurationSet | null>;
-    fetchVersion(bcName:string, appName:string, version:number):Promise<IConfigurationSet | null>;
+    init():Promise<void>;
+    store(configSet:ConfigurationSet):Promise<boolean>;
+    fetchLatest(envName:string, bcName:string, appName:string):Promise<ConfigurationSet | null>;
+    fetchVersion(envName:string, bcName:string, appName:string, version:string):Promise<ConfigurationSet | null>;
     // hasVersion(bcName:string, appName:string, version:number):Promise<boolean>;
     // has(bcName:string, appName:string):Promise<boolean>;
 }

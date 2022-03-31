@@ -28,14 +28,18 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
-import { AppConfiguration } from "./configuration_set"
-import { IConfigProvider } from "./iconfig_provider";
-import { DefaultConfigProvider } from "./default_provider";
+import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 
-export{
-    AppConfiguration,
-    IConfigProvider,
-    DefaultConfigProvider
+export type ConfigSetChangeValuesCmdPayload = {
+    environmentName: string,
+    boundedContextName: string,
+    applicationName: string,
+    version: string | null, // null for latest
+    newValues: [{
+        type: ConfigItemTypes;
+        name: string;
+        value: any;
+    }]
 }

@@ -31,13 +31,19 @@
 'use strict'
 
 export enum ConfigParameterTypes {
-    "STRING" = 'STRING',
-    'BOOL' = 'BOOL',
-    'INT_NUMBER' = 'INT_NUMBER',
-    'FLOAT_NUMBER' = 'FLOAT_NUMBER'
+    "STRING" = "STRING",
+    "BOOL" = "BOOL",
+    "INT_NUMBER" = "INT_NUMBER",
+    "FLOAT_NUMBER" = "FLOAT_NUMBER"
 }
 
-export class IConfigParameter {
+export enum ConfigItemTypes {
+    "PARAMETER" = "PARAMETER",
+    "FEATUREFLAG" = "FEATUREFLAG",
+    "SECRET" = "SECRET"
+}
+
+export type ConfigParameter = {
     name: string;
     type: ConfigParameterTypes;
     defaultValue: any;
@@ -45,30 +51,47 @@ export class IConfigParameter {
     currentValue: any;
 }
 
-export interface IConfigFeatureFlag {
+export type ConfigFeatureFlag = {
     name: string;
     defaultValue: boolean;
     description: string;
     currentValue: boolean;
 }
 
-export interface IConfigSecret {
+export type ConfigSecret = {
     name: string;
     defaultValue: string | null;
     description: string;
     currentValue: string;
 }
 
-export interface IConfigurationSet{
-    readonly id: IConfigurationSetId;
-    readonly params: IConfigParameter[];
-    readonly featureFlags: IConfigFeatureFlag[];
-    readonly secrets: IConfigSecret[];
+export type ConfigurationSet = {
+    environmentName: string;
+    boundedContextName: string;
+    applicationName: string;
+    applicationVersion: string; // semver
+    iterationNumber: number; // increases on every configuration/values change
+    readonly parameters: ConfigParameter[];
+    readonly featureFlags: ConfigFeatureFlag[];
+    readonly secrets: ConfigSecret[];
 }
 
-export interface IConfigurationSetId{
-    boundedContext: string;
-    application: string;
-    versionNumber: number;
-    patchNumber: number;
+export enum EnvironmentType {
+    "DEVELOPMENT" = "DEVELOPMENT",
+    "TESTING" = "TESTING",
+    "STAGING" = "STAGING",
+    "PRODUCTION" = "PRODUCTION"
 }
+
+export type Environment = {
+    name:string;
+    type:EnvironmentType;
+}
+
+/*
+export type ApplicationIdentifier = {
+    boundedContextName: string;
+    applicationName: string;
+    version: string; // semver
+}
+*/
