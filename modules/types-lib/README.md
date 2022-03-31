@@ -48,7 +48,3 @@ yarn start
 ```bash
 yarn test:unit
 ```
-
-## Known Issues
-
-- added `typescript` to [.ncurc.json](./.ncurc.json) as the `dep:update` script will install a non-supported version of typescript
