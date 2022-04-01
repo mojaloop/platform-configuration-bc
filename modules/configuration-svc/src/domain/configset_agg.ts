@@ -100,6 +100,52 @@ export class ConfigSetAggregate {
         return specificVersion;
     }
 
+    private _applyCurrentOrDefaulValues(targetConfigSet:ConfigurationSet, sourceConfigSet:ConfigurationSet | null){
+        //if(!sourceConfigSet) sourceConfigSet = targetConfigSet;
+
+        targetConfigSet.parameters.forEach(targetParam => {
+            if(sourceConfigSet){
+                const sourceParam = sourceConfigSet.parameters.find(item => item.name.toUpperCase() === targetParam.name.toUpperCase());
+                if(sourceParam && sourceParam.currentValue != undefined){
+                    targetParam.currentValue = sourceParam.currentValue;
+                }else{
+                    targetParam.currentValue = targetParam.defaultValue;
+                }
+            }else{
+                targetParam.currentValue = targetParam.defaultValue;
+            }
+        });
+
+        targetConfigSet.featureFlags.forEach(targetFeatureFlag => {
+            if(sourceConfigSet){
+                const sourceFeatureFlag = sourceConfigSet.featureFlags.find(item => item.name.toUpperCase() === targetFeatureFlag.name.toUpperCase());
+                if(sourceFeatureFlag && sourceFeatureFlag.currentValue != undefined){
+                    targetFeatureFlag.currentValue = sourceFeatureFlag.currentValue;
+                }else{
+                    targetFeatureFlag.currentValue = targetFeatureFlag.defaultValue;
+                }
+            }else{
+                targetFeatureFlag.currentValue = targetFeatureFlag.defaultValue;
+            }
+        });
+
+        targetConfigSet.secrets.forEach(targetSecret => {
+            if(sourceConfigSet){
+                const sourceSecret = sourceConfigSet.secrets.find(item => item.name.toUpperCase() === targetSecret.name.toUpperCase());
+                if(sourceSecret && sourceSecret.currentValue != undefined){
+                    targetSecret.currentValue = sourceSecret.currentValue;
+                }else{
+                    // secrets don't have a mandatory default value
+                    if(targetSecret.defaultValue) targetSecret.currentValue = targetSecret.defaultValue;
+                }
+            }else{
+                // secrets don't have a mandatory default value
+                if(targetSecret.defaultValue) targetSecret.currentValue = targetSecret.defaultValue;
+            }
+        });
+    }
+
+
     async processCreateConfigSetCmd(configSet:ConfigurationSet):Promise<void>{
         // TODO validate the configSet
         if(!this._validateConfigSet(configSet)){
@@ -109,17 +155,21 @@ export class ConfigSetAggregate {
 
         const latestVersion: ConfigurationSet | null = await this._repo.fetchLatest(configSet.environmentName, configSet.boundedContextName, configSet.applicationName);
 
-        if(latestVersion && semver.compare(latestVersion.applicationVersion, configSet.applicationVersion) == 0) {
-            this._logger.warn(`received duplicate configuration set for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING `);
-            throw new CannotCreateDuplicateConfigSetError();
-        }else if(latestVersion && semver.compare(latestVersion.applicationVersion, configSet.applicationVersion)  == 1) {
-            this._logger.error(`received configuration set with lower version than latest for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING with error`);
-            throw new CannotCreateOverridePreviousVersionConfigSetError();
+        if(latestVersion) {
+            if (semver.compare(latestVersion.applicationVersion, configSet.applicationVersion)==0) {
+                this._logger.warn(`received duplicate configuration set for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING `);
+                throw new CannotCreateDuplicateConfigSetError();
+            } else if (semver.compare(latestVersion.applicationVersion, configSet.applicationVersion)==1) {
+                this._logger.error(`received configuration set with lower version than latest for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}, IGNORING with error`);
+                throw new CannotCreateOverridePreviousVersionConfigSetError();
+            }
         }
 
+        //apply default values - if creating a new version, the current values should be copied from the old version
+        this._applyCurrentOrDefaulValues(configSet, latestVersion);
 
-        //TODO apply default values - if creating a new version, the current values should be copied from the old version
-        if(!configSet.iterationNumber) configSet.iterationNumber = 0;
+        // new configsets get 0 iterationNumber, newer versions of existing ones continue from the previous
+        configSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
         this._logger.info(`received configuration set for BC: ${configSet.boundedContextName}, APP: ${configSet.applicationName}, version: ${configSet.applicationVersion} and iterationNumber: ${configSet.iterationNumber}`);
         const stored = await this._repo.store(configSet);
@@ -149,23 +199,23 @@ export class ConfigSetAggregate {
             if(value.type.toUpperCase() === ConfigItemTypes.PARAMETER){
                 const param = configSet!.parameters.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!param){
-                    return Promise.reject( new ParameterNotFoundError());
+                    throw new ParameterNotFoundError();
                 }
                 param.currentValue = value.value;
             }else if(value.type.toUpperCase() === ConfigItemTypes.FEATUREFLAG){
                 const featureFlag = configSet!.featureFlags.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!featureFlag){
-                    return Promise.reject( new ParameterNotFoundError());
+                    throw new ParameterNotFoundError();
                 }
                 featureFlag.currentValue = value.value;
             }else if(value.type.toUpperCase() === ConfigItemTypes.SECRET){
                 const secret = configSet!.secrets.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!secret){
-                    return Promise.reject( new ParameterNotFoundError());
+                    throw new ParameterNotFoundError();
                 }
                 secret.currentValue = value.value;
             }else {
-                return Promise.reject( new ParameterNotFoundError());
+                throw new ParameterNotFoundError();
             }
             return;
         });
@@ -174,7 +224,7 @@ export class ConfigSetAggregate {
         configSet.iterationNumber++;
         const stored = await this._repo.store(configSet);
         if(!stored){
-            return Promise.reject(new CouldNotStoreConfigSetError());
+            throw new CouldNotStoreConfigSetError();
         }
 
         await this._notifyConfigSetChange(configSet);
