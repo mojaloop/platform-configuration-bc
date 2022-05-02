@@ -43,6 +43,8 @@ import {
 } from "../domain/errors";
 import {ConfigSetChangeValuesCmdPayload} from "../domain/commands";
 
+const CONFIG_SVC_DEFAULT_HTTP_PORT = 3100;
+
 const logger: ILogger = new ConsoleLogger();
 const repo: FileConfigSetRepo = new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
 const configSetAgg: ConfigSetAggregate = new ConfigSetAggregate(repo, logger);
@@ -180,8 +182,13 @@ async function start():Promise<void> {
     setupExpress();
     setupRoutes();
 
-    const server = app.listen(3000, () =>
-            console.log(`🚀 Server ready at: http://localhost:3000`),
+    let portNum = CONFIG_SVC_DEFAULT_HTTP_PORT;
+    if(process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {
+        portNum = parseInt(process.env["SVC_HTTP_PORT"])
+    }
+
+    const server = app.listen(portNum, () =>
+            console.log(`🚀 Server ready at: http://localhost:${portNum}`),
     );
 }
 

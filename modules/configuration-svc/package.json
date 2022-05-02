@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "start": "yarn run service",
-    "service": "tsc && node dist/index.js --config ../../.env",
+    "service": "tsc && node dist/application/index.js",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
