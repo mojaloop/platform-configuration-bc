@@ -32,7 +32,7 @@
 
 import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
-import axios, { AxiosResponse, AxiosInstance } from "axios";
+import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
 
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:()=>Promise<void>;
@@ -48,13 +48,21 @@ export class DefaultConfigProvider implements IConfigProvider {
         })
     }
 
-    async boostrap(configSetDto:ConfigurationSet): Promise<boolean>{
+    async boostrap(configSetDto:ConfigurationSet, ignoreDuplicateError:boolean = false): Promise<boolean>{
         this._checkInitialised();
 
-        const resp: AxiosResponse<any> = await this._client.post("/bootstrap", configSetDto);
-        console.log(resp.data);
-
-        return true;
+        //const resp: AxiosResponse<any> =
+        await this._client.post("/bootstrap", configSetDto).then((resp:AxiosResponse)=>{
+            console.log(resp.data);
+            return true;
+        }).catch((err:AxiosError) => {
+            if(err.response && err.response.status === 409 && ignoreDuplicateError === true){
+                return true;
+            }
+            console.log(err);
+            return false;
+        });
+        return false; // linter pleaser
     }
 
     async init(): Promise<boolean>{

@@ -73,7 +73,7 @@ describe('client-lib ConfigurationSet tests', () => {
     test('Full flow', async () => {
         await appConfiguration.init();
 
-        await appConfiguration.bootstrap();
+        await appConfiguration.bootstrap(true);
 
         // fetch
         await appConfiguration.fetch();

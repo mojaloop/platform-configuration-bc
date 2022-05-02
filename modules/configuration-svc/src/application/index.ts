@@ -64,7 +64,7 @@ function setupRoutes() {
             res.status(200).json({status: "ok"});
         }).catch((error: Error) => {
             if (error instanceof CannotCreateDuplicateConfigSetError) {
-                res.status(400).json({
+                res.status(409).json({
                     status: "error",
                     msg: "received duplicated configuration, cannot update"
                 });

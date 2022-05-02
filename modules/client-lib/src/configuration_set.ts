@@ -101,8 +101,8 @@ export class AppConfiguration {
         this._applyFromEnvVars(); // env vars always take priority
     }
 
-    async bootstrap(): Promise<boolean>{
-        return this._configProvider.boostrap(this.toJsonObj());
+    async bootstrap(ignoreDuplicateError:boolean = false): Promise<boolean>{
+        return this._configProvider.boostrap(this.toJsonObj(), ignoreDuplicateError);
     }
 
     has(name: string): boolean {
