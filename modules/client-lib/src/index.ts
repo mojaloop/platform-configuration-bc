@@ -30,12 +30,6 @@
 
 'use strict'
 
-import { AppConfiguration } from "./configuration_set"
-import { IConfigProvider } from "./iconfig_provider";
-import { DefaultConfigProvider } from "./default_provider";
-
-export{
-    AppConfiguration,
-    IConfigProvider,
-    DefaultConfigProvider
-}
+export * from "./app_configuration";
+export * from "./iconfig_provider";
+export * from "./default_provider";

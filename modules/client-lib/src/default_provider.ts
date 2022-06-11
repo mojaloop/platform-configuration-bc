@@ -40,7 +40,7 @@ export class DefaultConfigProvider implements IConfigProvider {
     private _initialised = false;
 
     constructor(configSvcBaseUrl:string) {
-        axios.defaults.baseURL = "http://localhost:3000";
+        axios.defaults.baseURL = configSvcBaseUrl;
         this._client = axios.create({
             baseURL: configSvcBaseUrl,
             timeout: 1000,
@@ -48,7 +48,7 @@ export class DefaultConfigProvider implements IConfigProvider {
         })
     }
 
-    async boostrap(configSetDto:ConfigurationSet, ignoreDuplicateError:boolean = false): Promise<boolean>{
+    async boostrap(configSetDto:ConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
         //const resp: AxiosResponse<any> =

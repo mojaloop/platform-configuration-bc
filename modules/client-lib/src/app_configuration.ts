@@ -31,12 +31,21 @@
 'use strict'
 
 import {
-    ConfigParameterTypes, ConfigFeatureFlag, ConfigParameter, ConfigSecret, ConfigurationSet
+    ConfigFeatureFlag,
+    ConfigParameter,
+    ConfigParameterTypes,
+    ConfigSecret,
+    ConfigurationSet
 } from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
+import * as process from "process";
+
+// name of the env var that if present disables remote fetch (uses only env vars or defaults)
+const STANDALONE_ENV_VAR_NAME = "PLATFORM_CONFIG_STANDALONE";
+const ENV_VAR_OVERRIDE_PREFIX = "ML_";
 
 export class AppConfiguration {
-    private readonly _configProvider:IConfigProvider;
+    private readonly _configProvider:IConfigProvider | null;
     private readonly _environmentName: string;
     private readonly _boundedContextName: string;
     private readonly _applicationName: string;
@@ -45,8 +54,9 @@ export class AppConfiguration {
     private readonly _parameters: Map<string, ConfigParameter>;
     private readonly _featureFlags: Map<string, ConfigFeatureFlag>;
     private readonly _secrets: Map<string, ConfigSecret>;
+    private readonly _standAloneMode: boolean = false;
 
-    constructor(environmentName: string, boundedContext: string, application: string, version: string, configProvider:IConfigProvider) {
+    constructor(environmentName: string, boundedContext: string, application: string, version: string, configProvider:IConfigProvider | null = null) {
         this._configProvider = configProvider;
         this._environmentName = environmentName;
         this._boundedContextName = boundedContext;
@@ -57,6 +67,8 @@ export class AppConfiguration {
         this._parameters = new Map<string, ConfigParameter>();
         this._featureFlags = new Map<string, ConfigFeatureFlag>();
         this._secrets = new Map<string, ConfigSecret>();
+
+        this._standAloneMode = configProvider === null || process.env[STANDALONE_ENV_VAR_NAME] != undefined;
     }
 
     get environmentName(): string {
@@ -80,15 +92,20 @@ export class AppConfiguration {
     }
 
     async init(): Promise<void>{
-        await this._configProvider.init();
+        if(!this._standAloneMode){
+            await this._configProvider!.init();
+        }
 
         this._applyFromEnvVars();
     }
 
     async fetch(versionNumber?:string): Promise<void>{
+        if(this._standAloneMode)
+            return;
+
         if(!versionNumber) versionNumber = this._applicationVersion;
 
-        const configSetDto:ConfigurationSet|null = await this._configProvider.fetch(this._environmentName, this._boundedContextName, this._applicationName, versionNumber);
+        const configSetDto:ConfigurationSet|null = await this._configProvider!.fetch(this._environmentName, this._boundedContextName, this._applicationName, versionNumber);
         if(null === configSetDto){
             // TODO log
             throw new Error(`Could not fetch configurationSet for BC: ${this._boundedContextName} - APP: ${this._applicationName} - VERSION: ${this._applicationVersion} - PATCH: ${this._iterationNumber}`);
@@ -101,8 +118,11 @@ export class AppConfiguration {
         this._applyFromEnvVars(); // env vars always take priority
     }
 
-    async bootstrap(ignoreDuplicateError:boolean = false): Promise<boolean>{
-        return this._configProvider.boostrap(this.toJsonObj(), ignoreDuplicateError);
+    async bootstrap(ignoreDuplicateError = false): Promise<boolean>{
+        if(this._standAloneMode)
+            return true;
+
+        return this._configProvider!.boostrap(this.toJsonObj(), ignoreDuplicateError);
     }
 
     has(name: string): boolean {
@@ -168,7 +188,28 @@ export class AppConfiguration {
     }
 
     private _applyFromEnvVars(){
-        // TODO: add _applyFromEnvVars() method
+        for(const paramName of this._parameters.keys()){
+            const envVarName = ENV_VAR_OVERRIDE_PREFIX+paramName.toUpperCase();
+            if(process.env[envVarName] != undefined){
+                const value = this._getParamValueFromString(this._parameters.get(paramName)!, process.env[envVarName]!);
+                this.setParamValue(paramName, value);
+            }
+        }
+
+        for(const featureFlagName of this._featureFlags.keys()){
+            const envVarName = ENV_VAR_OVERRIDE_PREFIX+featureFlagName.toUpperCase();
+            if(process.env[envVarName] != undefined){
+                const value = process.env[envVarName]!.toLowerCase() === "true";
+                this.setFeatureFlagValue(featureFlagName, value);
+            }
+        }
+
+        for(const secretName of this._secrets.keys()){
+            const envVarName = ENV_VAR_OVERRIDE_PREFIX+secretName.toUpperCase();
+            if(process.env[envVarName] != undefined){
+                this.setSecretValue(secretName, process.env[envVarName]!);
+            }
+        }
     }
 
     /*************************
@@ -207,6 +248,18 @@ export class AppConfiguration {
 
     getAllParams(): ConfigParameter[] {
         return Array.from(this._parameters.values());
+    }
+
+    private _getParamValueFromString(param: ConfigParameter, value:string):any {
+        if(param.type === ConfigParameterTypes.STRING){
+            return value;
+        }else if(param.type === ConfigParameterTypes.BOOL){
+            return (value.toLowerCase() === "true");
+        }else if(param.type === ConfigParameterTypes.INT_NUMBER){
+            return parseInt(value);
+        }else if(param.type === ConfigParameterTypes.FLOAT_NUMBER) {
+            return parseFloat(value);
+        }
     }
 
     setParamValue(paramName:string, value:any){

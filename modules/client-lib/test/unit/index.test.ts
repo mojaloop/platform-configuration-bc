@@ -1,9 +1,8 @@
 "use strict"
 
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
-import axios, {AxiosResponse} from "axios";
-import {AppConfiguration, DefaultConfigProvider} from "../../src/index";
-import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
+import {AppConfiguration, DefaultConfigProvider} from "../../src/";
+// import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
 
 const ENV_NAME = "dev";
 const BC_NAME = "platform-configuration";
@@ -14,10 +13,9 @@ const CONFIG_SVC_BASEURL = "http://localhost:3000";
 let appConfiguration: AppConfiguration;
 let defaultConfigProvider: DefaultConfigProvider;
 
+// const logger: ILogger = new ConsoleLogger();
 
-const logger: ILogger = new ConsoleLogger();
-
-describe('client-lib ConfigurationSet tests', () => {
+describe("client-lib ConfigurationSet tests", () => {
     beforeAll(async () => {
         // Setup
     })
@@ -26,13 +24,14 @@ describe('client-lib ConfigurationSet tests', () => {
         // Cleanup
     })
 
-    test('Create AppConfiguration', async () => {
+    test("Create AppConfiguration", async () => {
         // Setup
-        defaultConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
-        expect(defaultConfigProvider).toBeDefined()
-        expect(defaultConfigProvider).not.toBeNull()
+        // defaultConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
+        // expect(defaultConfigProvider).toBeDefined()
+        // expect(defaultConfigProvider).not.toBeNull()
 
-        appConfiguration = new AppConfiguration(ENV_NAME, BC_NAME, APP_NAME, CONFIGSET_VERSION, defaultConfigProvider);
+        // appConfiguration = new AppConfiguration(ENV_NAME, BC_NAME, APP_NAME, CONFIGSET_VERSION, defaultConfigProvider);
+        appConfiguration = new AppConfiguration(ENV_NAME, BC_NAME, APP_NAME, CONFIGSET_VERSION);
         expect(appConfiguration).not.toBeNull()
         expect(appConfiguration.getAllParams().length).toEqual(0);
         expect(appConfiguration.getAllFeatureFlags().length).toEqual(0);
@@ -63,7 +62,9 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
 
-    test('Test params - defaults and current values', async () => {
+
+
+    test("Test params - defaults and current values", async () => {
         const boolParam1 = appConfiguration.getParam("boolParam1");
         expect(boolParam1).not.toBeNull()
         if(boolParam1) { // to avoid typecript can be null check
@@ -101,7 +102,8 @@ describe('client-lib ConfigurationSet tests', () => {
         }
     });
 
-    test('Test feature flags - defaults and current values', async () => {
+
+    test("Test feature flags - defaults and current values", async () => {
         const featureFlag1 = appConfiguration.getFeatureFlag("featureFlag1");
         expect(featureFlag1).not.toBeNull()
         if(featureFlag1) { // to avoid typecript can be null check
@@ -111,7 +113,7 @@ describe('client-lib ConfigurationSet tests', () => {
         }
     });
 
-    test('Test secrets - defaults and current values', async () => {
+    test("Test secrets - defaults and current values", async () => {
         const secret1 = appConfiguration.getSecret("secret1");
         expect(secret1).not.toBeNull()
         if(secret1) { // to avoid typecript can be null check
@@ -122,7 +124,7 @@ describe('client-lib ConfigurationSet tests', () => {
     });
 
 
-    test('Test params - set value', async () => {
+    test("Test params - set value", async () => {
         appConfiguration.setParamValue("boolParam1", false);
         const boolParam1 = appConfiguration.getParam("boolParam1");
         expect(boolParam1).not.toBeNull()
@@ -163,7 +165,7 @@ describe('client-lib ConfigurationSet tests', () => {
         }
     });
 
-    test('Test feature flags - set value', async () => {
+    test("Test feature flags - set value", async () => {
         appConfiguration.setFeatureFlagValue("featureFlag1", true);
         const featureFlag1 = appConfiguration.getFeatureFlag("featureFlag1");
         expect(featureFlag1).not.toBeNull()
@@ -174,7 +176,7 @@ describe('client-lib ConfigurationSet tests', () => {
         }
     });
 
-    test('Test secrets - set value', async () => {
+    test("Test secrets - set value", async () => {
         appConfiguration.setSecretValue("secret1", "evenbetterpass");
         const secret1 = appConfiguration.getSecret("secret1");
         expect(secret1).not.toBeNull()
@@ -183,6 +185,42 @@ describe('client-lib ConfigurationSet tests', () => {
             expect(secret1.defaultValue).toBe("password");
             expect(secret1.currentValue).toBe("evenbetterpass");
         }
+    });
+
+    test("Test EnvVars", async () => {
+        process.env["ML_BOOLPARAM1"] = "true";
+        process.env["ML_STRINGPARAM1"] = "env var value";
+        process.env["ML_INTPARAM1"] = "42";
+        process.env["ML_FLOATPARAM1"] = "3.1415";
+        process.env["ML_FEATUREFLAG1"] = "true";
+        process.env["ML_SECRET1"] = "env var password";
+
+        // env vars overrides are only loaded at init
+        await appConfiguration.init();
+
+        const boolParam1 = appConfiguration.getParam("boolParam1");
+        expect(boolParam1).not.toBeNull()
+        expect(boolParam1!.currentValue).toBe(true);
+
+        const stringParam1 = appConfiguration.getParam("stringParam1");
+        expect(stringParam1).not.toBeNull()
+        expect(stringParam1!.currentValue).toBe("env var value");
+
+        const intParam1 = appConfiguration.getParam("intParam1");
+        expect(intParam1).not.toBeNull()
+        expect(intParam1!.currentValue).toBe(42);
+
+        const floatParam1 = appConfiguration.getParam("floatParam1");
+        expect(floatParam1).not.toBeNull()
+        expect(floatParam1!.currentValue).toBe(3.1415);
+
+        const featureFlag1 = appConfiguration.getFeatureFlag("featureFlag1");
+        expect(featureFlag1).not.toBeNull()
+        expect(featureFlag1!.currentValue).toBe(true);
+
+        const secret1 = appConfiguration.getSecret("secret1");
+        expect(secret1).not.toBeNull()
+        expect(secret1!.currentValue).toBe("env var password");
     });
 
     /*  test('fetch', async () => {
