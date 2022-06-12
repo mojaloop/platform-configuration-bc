@@ -28,18 +28,36 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
 import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
+import process from "process";
+
+const PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_CENTRAL_URL";
 
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:()=>Promise<void>;
     private _client:AxiosInstance;
     private _initialised = false;
 
-    constructor(configSvcBaseUrl:string) {
+    constructor(configSvcBaseUrl:string|null = null) {
+
+        if(!configSvcBaseUrl){
+            if(process.env[PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME] === undefined){
+                throw new Error("DefaultConfigProvider cannot continue, a configSvcBaseUrl was not provided in the constructor nor via env var")
+            }
+            const envVal = process.env[PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME];
+
+            try{
+                const url = new URL(envVal || "");
+                configSvcBaseUrl = url.toString();
+            }catch(err){
+                throw new Error("DefaultConfigProvider cannot continue, invalid configSvcBaseUrl provided via env var")
+            }
+        }
+
         axios.defaults.baseURL = configSvcBaseUrl;
         this._client = axios.create({
             baseURL: configSvcBaseUrl,

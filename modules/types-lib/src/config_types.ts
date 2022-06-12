@@ -66,14 +66,14 @@ export type ConfigSecret = {
 }
 
 export type ConfigurationSet = {
-    environmentName: string;
-    boundedContextName: string;
-    applicationName: string;
-    applicationVersion: string; // semver
-    iterationNumber: number; // increases on every configuration/values change
-    readonly parameters: ConfigParameter[];
-    readonly featureFlags: ConfigFeatureFlag[];
-    readonly secrets: ConfigSecret[];
+    environmentName: string;                        // target environment name
+    boundedContextName: string;                     // target bounded context
+    applicationName: string;                        // target application name
+    applicationVersion: string;                     // target app version (semver format)
+    iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
+    readonly parameters: ConfigParameter[];         // parameter list
+    readonly featureFlags: ConfigFeatureFlag[];     // featureFlag list
+    readonly secrets: ConfigSecret[];               // secret list
 }
 
 export enum EnvironmentType {

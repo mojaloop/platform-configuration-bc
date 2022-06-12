@@ -31,10 +31,20 @@ nvm use
 npm -g yarn
 ```
 
-### Install Dependencies
+Set yarn to v3
+```bash
+yarn set version berry
+```
+
+Confirm with
+```bash
+yarn --version
+```
+
+### Install Yarn Plugins
 
 ```bash
-yarn
+yarn plugin import workspace-tools
 ```
 
 ## Build

@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@mojaloop/logging-bc-logging-client-lib": "^0.0.5",
-    "@mojaloop/platform-configuration-bc-types-lib": "workspace:^",
+    "@mojaloop/platform-configuration-bc-types-lib": "workspace:*",
     "express": "^4.18.0",
     "semver": "^7.3.7"
   },
