@@ -25,7 +25,7 @@ const APP_NAME = "my-server-app";
 const APP_VERSION = "0.0.1";
 const CONFIG_SVC_BASEURL = "http://localhost:3000";
 
-// NOTE: make sure the PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME env var contains the platform config service base url
+// NOTE: make sure the PLATFORM_CONFIG_CENTRAL_URL env var contains the platform config service base url
 
 // create the default provider instance
 const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider();
