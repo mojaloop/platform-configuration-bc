@@ -35,6 +35,7 @@ import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 export interface IConfigSetRepository {
     init():Promise<void>;
     store(configSet:ConfigurationSet):Promise<boolean>;
+    fetchAll():Promise<ConfigurationSet[]>;
     fetchLatest(envName:string, bcName:string, appName:string):Promise<ConfigurationSet | null>;
     fetchVersion(envName:string, bcName:string, appName:string, version:string):Promise<ConfigurationSet | null>;
     // hasVersion(bcName:string, appName:string, version:number):Promise<boolean>;

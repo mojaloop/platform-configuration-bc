@@ -33,7 +33,7 @@
 import semver from "semver";
 import {IConfigSetRepository} from "./iconfigset_repo";
 import {ConfigItemTypes, ConfigParameterTypes, ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
-import {ILogger} from "@mojaloop/logging-bc-logging-client-lib/dist/index";
+import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
     CannotCreateOverridePreviousVersionConfigSetError,
     CannotCreateDuplicateConfigSetError,
@@ -42,6 +42,7 @@ import {
     ParameterNotFoundError, InvalidConfigurationSetError
 } from "./errors";
 import {ConfigSetChangeValuesCmdPayload} from "./commands";
+import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 
 
 
@@ -49,10 +50,12 @@ import {ConfigSetChangeValuesCmdPayload} from "./commands";
 export class ConfigSetAggregate {
     private _logger: ILogger;
     private _repo:IConfigSetRepository;
+    private _auditClient:IAuditClient;
 
-    constructor(repo:IConfigSetRepository, logger: ILogger) {
+    constructor(repo:IConfigSetRepository, logger: ILogger, auditClient:IAuditClient) {
         this._repo = repo;
         this._logger = logger;
+        this._auditClient = auditClient;
     }
 
     private async _notifyConfigSetChange(configSet:ConfigurationSet){
@@ -87,6 +90,11 @@ export class ConfigSetAggregate {
         }
 
         return true;
+    }
+
+    async getAllConfigSets():Promise<ConfigurationSet[]>{
+        const allVersions: ConfigurationSet [] = await this._repo.fetchAll();
+        return allVersions;
     }
 
     async getLatestVersion(envName:string, bcName: string, appName: string):Promise<ConfigurationSet | null>{
@@ -177,6 +185,14 @@ export class ConfigSetAggregate {
             throw new CouldNotStoreConfigSetError();
         }
 
+        // TODO: add audit security context
+        // const secCtx: SecurityContext = {
+        //     userId: "userid",
+        //     appId: null,
+        //     role: "role"
+        // }
+        await this._auditClient.audit("ConfigSetCreated", true);
+
         await this._notifyConfigSetChange(configSet);
     }
 
@@ -226,6 +242,14 @@ export class ConfigSetAggregate {
         if(!stored){
             throw new CouldNotStoreConfigSetError();
         }
+
+        // TODO: add audit security context
+        // const secCtx: SecurityContext = {
+        //     userId: "userid",
+        //     appId: null,
+        //     role: "role"
+        // }
+        await this._auditClient.audit("ConfigSetValueChanged", true);
 
         await this._notifyConfigSetChange(configSet);
     }

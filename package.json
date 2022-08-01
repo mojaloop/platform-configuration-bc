@@ -19,7 +19,7 @@
     "build": "yarn workspaces foreach -v run build",
     "watch": "yarn workspaces foreach --parallel -v run watch",
     "clean": "yarn run clean:dist",
-    "clean:npm": "yarn workspaces foreach --parallel -v run clean:npm",
+    "clean:npm": "rm -Rf node_modules && yarn workspaces foreach --parallel -v run clean:npm",
     "clean:dist": "yarn workspaces foreach --parallel -v run clean:dist",
     "pretest": "echo 'FIX ME'",
     "standard": "yarn run --no-progress --stream lint'",

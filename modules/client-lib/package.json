@@ -27,6 +27,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
+    "clean:npm": "rm -Rf node_modules",
     "pretest": "yarn run build",
     "standard": "yarn run lint",
     "lint": "yarn run build && npx eslint ./src",
@@ -46,6 +47,7 @@
     "axios": "^0.27.1"
   },
   "devDependencies": {
+    "@mojaloop/logging-bc-public-types-lib": "^0.0.3",
     "@types/axios": "^0.14.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^17.0.29",

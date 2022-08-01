@@ -29,9 +29,10 @@
  ******/
 
 'use strict'
-
-import express from "express";
-import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
+import {existsSync} from "fs"
+import express, {Express} from "express";
+import {LogLevel, ILogger} from "@mojaloop/logging-bc-public-types-lib";
+import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
 import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
 import {ConfigSetAggregate} from "../domain/configset_agg";
@@ -42,14 +43,47 @@ import {
     ConfigurationSetNotFoundError, CouldNotStoreConfigSetError, InvalidConfigurationSetError, ParameterNotFoundError
 } from "../domain/errors";
 import {ConfigSetChangeValuesCmdPayload} from "../domain/commands";
+import {
+    AuditClient,
+    KafkaAuditClientDispatcher,
+    LocalAuditClientCryptoProvider
+} from "@mojaloop/auditing-bc-client-lib";
+import {ConsoleLogger} from "typedoc/dist/lib/utils/index";
 
-const CONFIG_SVC_DEFAULT_HTTP_PORT = 3100;
+const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
 
-const logger: ILogger = new ConsoleLogger();
-const repo: FileConfigSetRepo = new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
-const configSetAgg: ConfigSetAggregate = new ConfigSetAggregate(repo, logger);
+const BC_NAME = "platform-configuration-bc";
+const APP_NAME = "platform-configuration-svc";
+const APP_VERSION = "0.0.1";
+const LOGLEVEL = LogLevel.DEBUG;
 
-const app = express();
+const SVC_DEFAULT_HTTP_PORT = 3100;
+
+const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
+const KAFKA_AUDITS_TOPIC = process.env["KAFKA_AUDITS_TOPIC"] || "audits";
+const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
+const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "./tmp_key_file";
+
+let app:Express;
+let auditClient:AuditClient;
+let configSetAgg:ConfigSetAggregate;
+
+//const logger: ILogger = new ConsoleLogger();
+// kafka logger
+
+const kafkaProducerOptions = {
+    kafkaBrokerList: KAFKA_URL
+}
+//const consoleLogger:ConsoleLogger = new ConsoleLogger();
+
+const logger:KafkaLogger = new KafkaLogger(
+        BC_NAME,
+        APP_NAME,
+        APP_VERSION,
+        kafkaProducerOptions,
+        KAFKA_LOGS_TOPIC,
+        LOGLEVEL
+);
 
 function setupExpress() {
     app.use(express.json()); // for parsing application/json
@@ -87,6 +121,17 @@ function setupRoutes() {
                 });
             }
         });
+    });
+
+    app.get("/configsets/", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+
+        const retConfigSets: ConfigurationSet[] = await configSetAgg.getAllConfigSets();
+
+        if (!retConfigSets) {
+            logger.debug("no config sets found");
+            return res.status(404).send();
+        }
+        return res.status(200).json(retConfigSets);
     });
 
     app.get("/configsets/:env/:bc/:app", async (req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -177,19 +222,41 @@ function setupRoutes() {
 }
 
 async function start():Promise<void> {
+    await logger.start();
+
+    if(!existsSync(AUDIT_CERT_FILE_PATH)) {
+        if(PRODUCTION_MODE) process.exit(9);
+
+        // create e tmp file
+        LocalAuditClientCryptoProvider.createRsaPrivateKeyFileSync(AUDIT_CERT_FILE_PATH, 2048);
+    }
+
+    const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_CERT_FILE_PATH);
+    const auditDispatcher = new KafkaAuditClientDispatcher(kafkaProducerOptions, KAFKA_AUDITS_TOPIC, logger);
+    // NOTE: to pass the same kafka logger to the audit client, make sure the logger is started/initialised already
+    auditClient = new AuditClient(BC_NAME, APP_NAME, APP_VERSION, cryptoProvider, auditDispatcher);
+
+    const repo: FileConfigSetRepo = new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
+    configSetAgg = new ConfigSetAggregate(repo, logger, auditClient);
+
+    app = express();
+
+    await logger.start();
+    await auditClient.init();
     await repo.init();
 
     setupExpress();
     setupRoutes();
 
-    let portNum = CONFIG_SVC_DEFAULT_HTTP_PORT;
+    let portNum = SVC_DEFAULT_HTTP_PORT;
     if(process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {
         portNum = parseInt(process.env["SVC_HTTP_PORT"])
     }
 
-    const server = app.listen(portNum, () =>
-            console.log(`🚀 Server ready at: http://localhost:${portNum}`),
-    );
+    const server = app.listen(portNum, () => {
+        console.log(`🚀 Server ready at: http://localhost:${portNum}`);
+        logger.info("Platform configuration service started");
+    });
 }
 
 async function _handle_int_and_term_signals(signal: NodeJS.Signals): Promise<void> {

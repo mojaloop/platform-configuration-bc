@@ -3,7 +3,7 @@
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 import axios, {AxiosResponse} from "axios";
 import {AppConfiguration, DefaultConfigProvider} from "../../src/index";
-import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-logging-client-lib";
+import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 
 const ENV_NAME = "dev";
 const BC_NAME = "platform-configuration";

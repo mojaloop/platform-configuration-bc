@@ -27,6 +27,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",
+    "clean:npm": "rm -Rf node_modules",
     "pretest": "yarn run build",
     "standard": "yarn run lint",
     "lint": "yarn run build && npx eslint ./src",

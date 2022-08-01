@@ -33,7 +33,7 @@ import semver from "semver";
 import {readFile, stat, writeFile} from "fs/promises";
 import {IConfigSetRepository} from "../domain/iconfigset_repo";
 import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
-import {ILogger} from "@mojaloop/logging-bc-logging-client-lib";
+import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import fs from "fs";
 
 
@@ -135,6 +135,23 @@ export class FileConfigSetRepo implements IConfigSetRepository{
             }
         }
     }
+
+    async fetchAll(): Promise<ConfigurationSet[]> {
+        const allVersions:ConfigurationSet[] = [];
+
+
+        for(const key of this._configSets.keys()){
+            const versions = this._configSets.get(key) || [];
+            allVersions.push(...versions);
+        }
+
+        if(allVersions.length <= 0){
+            return [];
+        }
+
+        return allVersions;
+    }
+
 
     async fetchLatest(envName:string, bcName: string, appName: string): Promise<ConfigurationSet | null> {
         const allVersions:ConfigurationSet[] = this._getConfigVersions(envName, bcName, appName);
