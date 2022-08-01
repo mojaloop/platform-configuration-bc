@@ -170,7 +170,7 @@ export ML_SERVERBASEURL=https://192.168.1.1:443
 
 Standalone mode means that no values will be fetched from the central/remote service. In other works, any provided `IConfigProvider` will be disabled.
 
-**This might be usefully in local development mode, where the central service is not available.**
+**This might be useful in local development mode, where the central service is not available.**
 
 There are two ways to have the AppConfiguration working in standalone:
 - By setting a specially called env var with any non-null value, called: `PLATFORM_CONFIG_STANDALONE`
