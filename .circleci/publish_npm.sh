@@ -62,7 +62,7 @@ do
 
   if [[ "$PACKAGE_IS_PRIVATE" != "false" ]]; then
     echo -e "\tPackage is private - ignoring"
-  elif [[ -z "$PACKAGE_LAST_CHANGE_COMMIT_SHA" ]] || [[ $COMMITS_SINCE_LAST_CI_BUILD == *"$PACKAGE_LAST_CHANGE_COMMIT_SHA"* ]] ]]; then
+  elif [[ -z "$PACKAGE_LAST_CHANGE_COMMIT_SHA" ]] || [[ $COMMITS_SINCE_LAST_CI_BUILD == *"$PACKAGE_LAST_CHANGE_COMMIT_SHA"* ]]; then
     PACKAGES_TO_PUBLISH+="$PACKAGE "
     PACKAGES_TO_PUBLISH_COUNT=$((PACKAGES_TO_PUBLISH_COUNT + 1))
     echo -e "\tPackage changed since last CI build - adding to the list"
