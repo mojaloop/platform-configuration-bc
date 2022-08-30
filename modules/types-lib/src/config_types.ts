@@ -66,6 +66,7 @@ export type ConfigSecret = {
 }
 
 export type ConfigurationSet = {
+   // global: boolean;                                // Configuration set is for the whole platform and not a single app
     environmentName: string;                        // target environment name
     boundedContextName: string;                     // target bounded context
     applicationName: string;                        // target application name

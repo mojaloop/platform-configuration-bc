@@ -48,7 +48,6 @@ import {
     KafkaAuditClientDispatcher,
     LocalAuditClientCryptoProvider
 } from "@mojaloop/auditing-bc-client-lib";
-import {ConsoleLogger} from "typedoc/dist/lib/utils/index";
 
 const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
 

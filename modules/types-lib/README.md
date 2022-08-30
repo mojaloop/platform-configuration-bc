@@ -19,32 +19,26 @@ nvm install
 nvm use
 ```
 
-### Install Yarn
-
-```bash
-npm -g yarn
-```
-
 ### Install Dependencies
 
 ```bash
-yarn
+npm install
 ```
 
 ## Build
 
 ```bash
-yarn build
+npm run build
 ```
 
 ## Run
 
 ```bash
-yarn start
+npm run start
 ```
 
 ## Unit Tests
 
 ```bash
-yarn test:unit
+npm run test:unit
 ```

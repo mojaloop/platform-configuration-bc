@@ -190,9 +190,9 @@ This client is aligned with the central component of the Mojaloop vNex Platform 
 To install this library use:
 
 ```shell
-yarn add @mojaloop/platform-configuration-bc-client-lib
+npm install @mojaloop/platform-configuration-bc-client-lib
 
 OR 
 
-npm install @mojaloop/platform-configuration-bc-client-lib
+yarn add @mojaloop/platform-configuration-bc-client-lib
 ```
