@@ -105,9 +105,10 @@ do
   echo -e "---------------- PUBLISH START ----------------------\n"
   # actual publish command
   npm -w ${PACKAGE_NAME} publish --tag=latest --access public
+  PUB_SUCCESS=$?
   echo -e "\n----------------- PUBLISH END -----------------------"
 
-  if [[ $? -eq 0 ]]; then
+  if [[ $PUB_SUCCESS -eq 0 ]]; then
     PUBLISHED_PACKAGES_COUNT=$((PUBLISHED_PACKAGES_COUNT + 1))
     TAG_NAME=${PACKAGE}_v${PACKAGE_NEW_VERSION}
     echo -e "Successfully published - git staging '${PACKAGE_PATH}/package.json' and creating tag: '${TAG_NAME}'"
@@ -125,20 +126,25 @@ done
 printHeader "Phase 4 - Pushing commits to git"
 
 if [[ PUBLISHED_PACKAGES_COUNT -gt 0 ]]; then
-  echo -e "${PUBLISHED_PACKAGES_COUNT} package(s) were published, committing changed 'package.json' files..."
+  # store the commit ID of the current commit for future CI/C reference
+  echo ${CIRCLE_SHA1} > ${LASTCIBUILDFILE}
+  #git --no-pager log -1 --pretty=%H > ${LASTCIBUILDFILE}
+  git add ${LASTCIBUILDFILE}
 
-  # create a commit with the updated package.json files
+  # commit the updated package.json files and LASTCIBUILDFILE
+  echo -e "${PUBLISHED_PACKAGES_COUNT} package(s) were published, committing changed 'package.json' files..."
   git commit -nm "CI/CD auto commit for: $(git log -1 --pretty=%B) [ci skip]"
 
-  # store the commit ID of the updated package.json files as file
-  echo ${CIRCLE_SHA1} > ${LASTCIBUILDFILE}
-  git add .lastcibuild
-
-  echo -e "Pushing commits..."
-#  git status
+  echo -e "Pushing changes..."
+  # git status
   git push -f origin $CIRCLE_BRANCH --tags
 
-  echo -e "\nDONE - ${PUBLISHED_PACKAGES_COUNT} package(s) were published, all done."
+  if [[ $? -eq 0 ]]; then
+    echo -e "\nDONE - ${PUBLISHED_PACKAGES_COUNT} package(s) were published and version changes pushed, all done."
+  else
+    echo -e "Error pushing CI/CD auto commits for version changes - exiting"
+    exit 5
+  fi
 else
   echo -e "${PUBLISHED_PACKAGES_COUNT} Packages were found to be published, but none was successfully published, error."
   exit 9
