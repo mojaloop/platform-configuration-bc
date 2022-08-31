@@ -34,6 +34,7 @@ defaults_npm_auth: &defaults_npm_auth
 executors:
   default-docker:
     working_directory: &workingDirVar /home/circleci/project
+    resource_class: medium
     docker:
       - image: node:16.13
 

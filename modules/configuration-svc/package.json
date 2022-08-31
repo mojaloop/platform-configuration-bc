@@ -38,8 +38,8 @@
     "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
     "audit:resolve": "SHELL=sh resolve-audit",
     "audit:check": "SHELL=sh check-audit",
-    "dep:check": "npm run ncu -e 2",
-    "dep:update": "npm run ncu -u"
+    "dep:check": "ncu -e 2",
+    "dep:update": "ncu -e 2 -u"
   },
   "dependencies": {
     "@mojaloop/auditing-bc-client-lib": "^0.0.3",
