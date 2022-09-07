@@ -30,5 +30,26 @@
 
 "use strict"
 
-import {start} from "./service";
-start();
+import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+
+export type AppConfigSetChangeValuesCmdPayload = {
+    environmentName: string,
+    boundedContextName: string,
+    applicationName: string,
+    version: string | null, // null for latest
+    newValues: [{
+        type: ConfigItemTypes;
+        name: string;
+        value: any;
+    }]
+}
+
+export type GlobalConfigSetChangeValuesCmdPayload = {
+    environmentName: string,
+    version: string | null, // null for latest
+    newValues: [{
+        type: ConfigItemTypes;
+        name: string;
+        value: any;
+    }]
+}

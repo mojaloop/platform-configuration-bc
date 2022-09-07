@@ -30,14 +30,8 @@
 
 "use strict"
 
-import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+export * from "./commands";
+export * from "./errors";
+export * from "./configset_agg";
+export * from "./infrastructure_interfaces";
 
-export interface IConfigSetRepository {
-    init():Promise<void>;
-    store(configSet:ConfigurationSet):Promise<boolean>;
-    fetchAll():Promise<ConfigurationSet[]>;
-    fetchLatest(envName:string, bcName:string, appName:string):Promise<ConfigurationSet | null>;
-    fetchVersion(envName:string, bcName:string, appName:string, version:string):Promise<ConfigurationSet | null>;
-    // hasVersion(bcName:string, appName:string, version:number):Promise<boolean>;
-    // has(bcName:string, appName:string):Promise<boolean>;
-}

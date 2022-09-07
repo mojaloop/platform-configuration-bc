@@ -30,7 +30,7 @@
 
 "use strict"
 
-import {ConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
 import process from "process";
@@ -66,7 +66,7 @@ export class DefaultConfigProvider implements IConfigProvider {
         })
     }
 
-    async boostrap(configSetDto:ConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
+    async boostrap(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
         //const resp: AxiosResponse<any> =
@@ -92,31 +92,31 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
-    async fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<ConfigurationSet | null>{
+    async fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>{
         this._checkInitialised();
 
-        let configSetData: ConfigurationSet;
+        let appConfigSetData: AppConfigurationSet;
         try {
             const resp = await this._client.get(`/configsets/${envName}/${bcName}/${appName}?version=${appVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
-            configSetData = resp.data;
+            appConfigSetData = resp.data;
 
         } catch (error) {
             console.error(error);
             return null;
         }
 
-        if(configSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
-                || configSetData.applicationName.toUpperCase() !== appName.toUpperCase()
-                || configSetData.applicationVersion != appVersion
-                || configSetData.iterationNumber < 0){
+        if(appConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
+                || appConfigSetData.applicationName.toUpperCase() !== appName.toUpperCase()
+                || appConfigSetData.applicationVersion != appVersion
+                || appConfigSetData.iterationNumber < 0){
             console.warn("invalid configSet version received");
             return null;
         }
 
-        return configSetData;
+        return appConfigSetData;
     }
 
     // this will be called by the IConfigProvider implementation when changes are detected

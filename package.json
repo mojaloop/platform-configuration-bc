@@ -31,8 +31,8 @@
     "test:integration": "npm -ws --parallel run test:integration",
     "audit:resolve": "npm -ws --parallel run audit:resolve",
     "audit:check": "npm -ws --parallel run audit:check",
-    "dep:check": "npm -ws --parallel run dep:check",
-    "dep:update": "npm -ws --parallel run dep:update",
+    "dep:check": "ncu -e 2 && npm -ws --parallel run dep:check",
+    "dep:update": "ncu -e 2 -u && npm -ws --parallel run dep:update",
     "publish:client-lib": "npm -w @mojaloop/platform-configuration-bc-client-lib run npm_publish",
     "publish:types-lib": "npm -w @mojaloop/platform-configuration-bc-types-lib run npm_publish"
   },
@@ -50,6 +50,7 @@
   },
   "workspaces": [
     "modules/types-lib",
+    "modules/domain-lib",
     "modules/*"
   ]
 }

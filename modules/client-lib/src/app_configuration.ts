@@ -35,7 +35,7 @@ import {
     ConfigParameter,
     ConfigParameterTypes,
     ConfigSecret,
-    ConfigurationSet
+    AppConfigurationSet
 } from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import * as process from "process";
@@ -105,15 +105,15 @@ export class AppConfiguration {
 
         if(!versionNumber) versionNumber = this._applicationVersion;
 
-        const configSetDto:ConfigurationSet|null = await this._configProvider!.fetch(this._environmentName, this._boundedContextName, this._applicationName, versionNumber);
-        if(null === configSetDto){
+        const appConfigSetDto:AppConfigurationSet|null = await this._configProvider!.fetch(this._environmentName, this._boundedContextName, this._applicationName, versionNumber);
+        if(null === appConfigSetDto){
             // TODO log
             throw new Error(`Could not fetch configurationSet for BC: ${this._boundedContextName} - APP: ${this._applicationName} - VERSION: ${this._applicationVersion} - PATCH: ${this._iterationNumber}`);
         }
 
         // TODO check that ID matches
 
-        this._fromJsonObj(configSetDto);
+        this._fromJsonObj(appConfigSetDto);
 
         this._applyFromEnvVars(); // env vars always take priority
     }
@@ -147,7 +147,7 @@ export class AppConfiguration {
     }
 
 
-    toJsonObj():ConfigurationSet{
+    toJsonObj():AppConfigurationSet{
         return {
             environmentName: this.environmentName,
             boundedContextName: this.boundedContextName,
@@ -160,7 +160,7 @@ export class AppConfiguration {
         }
     }
 
-    private _fromJsonObj(data:ConfigurationSet):void{
+    private _fromJsonObj(data:AppConfigurationSet):void{
         // clear all first
         this._parameters.clear();
         this._featureFlags.clear();

@@ -28,13 +28,25 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 
-export class ConfigurationSetNotFoundError extends Error {}
-export class InvalidConfigurationSetError extends Error {}
-export class CannotCreateDuplicateConfigSetError extends Error {}
-export class CannotCreateOverridePreviousVersionConfigSetError extends Error {}
-export class ParameterNotFoundError extends Error {}
-export class CouldNotStoreConfigSetError extends Error {}
+export interface IAppConfigSetRepository {
+    init():Promise<void>;
+
+    // app config set specific
+    storeAppConfigSet(configSet:AppConfigurationSet):Promise<boolean>;
+    fetchAllAppConfigSets(envName:string):Promise<AppConfigurationSet[]>;
+    fetchLatestAppConfigSet(envName:string, bcName:string, appName:string):Promise<AppConfigurationSet | null>;
+    fetchAppConfigSetVersion(envName:string, bcName:string, appName:string, version:string):Promise<AppConfigurationSet | null>;
+}
+
+export interface IGlobalConfigSetRepository {
+    init():Promise<void>;
+
+    // global config set specific
+    storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<boolean>;
+    fetchGlobalAppConfigSets(envName:string):Promise<GlobalConfigurationSet[]>;
+    fetchLatestGlobalConfigSet(envName:string):Promise<GlobalConfigurationSet | null>;
+}

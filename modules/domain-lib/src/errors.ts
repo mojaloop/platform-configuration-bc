@@ -28,18 +28,22 @@
  --------------
  ******/
 
-"use strict"
+'use strict'
 
-import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 
-export type ConfigSetChangeValuesCmdPayload = {
-    environmentName: string,
-    boundedContextName: string,
-    applicationName: string,
-    version: string | null, // null for latest
-    newValues: [{
-        type: ConfigItemTypes;
-        name: string;
-        value: any;
-    }]
-}
+// App config set specific
+export class AppConfigurationSetNotFoundError extends Error {}
+export class InvalidAppConfigurationSetError extends Error {}
+
+// Global config set specific
+export class GlobalConfigurationSetNotFoundError extends Error {}
+export class InvalidGlobalConfigurationSetError extends Error {}
+
+
+// common errors
+export class CannotCreateDuplicateConfigSetError extends Error {}
+export class CannotCreateOverridePreviousVersionConfigSetError extends Error {}
+export class ParameterNotFoundError extends Error {}
+export class CouldNotStoreConfigSetError extends Error {}
+export class OnlyLatestVersionCanBeChangedError extends Error {}
