@@ -46,4 +46,5 @@ export class CannotCreateDuplicateConfigSetError extends Error {}
 export class CannotCreateOverridePreviousVersionConfigSetError extends Error {}
 export class ParameterNotFoundError extends Error {}
 export class CouldNotStoreConfigSetError extends Error {}
-export class OnlyLatestVersionCanBeChangedError extends Error {}
+export class OnlyLatestSchemaVersionCanBeChangedError extends Error {}
+export class OnlyLatestIterationCanBeChangedError extends Error {}

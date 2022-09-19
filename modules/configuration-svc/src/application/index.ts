@@ -31,4 +31,4 @@
 "use strict"
 
 import {start} from "./service";
-start();
+start().then(r => {});

@@ -49,4 +49,5 @@ export interface IGlobalConfigSetRepository {
     storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<boolean>;
     fetchGlobalAppConfigSets(envName:string):Promise<GlobalConfigurationSet[]>;
     fetchLatestGlobalConfigSet(envName:string):Promise<GlobalConfigurationSet | null>;
+    fetchGlobalConfigSetVersion(envName:string, version:string):Promise<GlobalConfigurationSet | null>;
 }

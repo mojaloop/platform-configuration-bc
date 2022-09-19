@@ -28,10 +28,37 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
+import {WriteGlobalConfigurationSet} from "./local_types";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 
-export * from "./configuration_interfaces";
-export * from "./configuration_client";
-export * from "./iconfig_provider";
-export * from "./default_provider";
+export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
+    //////////////////////////////
+    // Add Parameters to the schema here
+
+    globalConfigSet.parameters.push({
+        name: "boolParam1",
+        type: ConfigParameterTypes.BOOL,
+        defaultValue: true,
+        description: "description bool param 1"
+    })
+
+    //////////////////////////////
+    // Add Feature Flags to the schema here
+
+    globalConfigSet.featureFlags.push({
+        name: "globalFeatureFlag1",
+        defaultValue: true,
+        description: "description for globalFeatureFlag1"
+    });
+
+    //////////////////////////////
+    // Add Secrets to the schema here
+
+    globalConfigSet.secrets.push({
+        name: "globalSecret 1",
+        defaultValue: "super secret",
+        description: "description for globalSecret 1"
+    });
+}

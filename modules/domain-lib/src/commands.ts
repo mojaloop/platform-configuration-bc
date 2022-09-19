@@ -36,7 +36,9 @@ export type AppConfigSetChangeValuesCmdPayload = {
     environmentName: string,
     boundedContextName: string,
     applicationName: string,
-    version: string | null, // null for latest
+    //applicationVersion: string, // no need for this, we control from schemaVersion and iteration number
+    schemaVersion: string,
+    iteration: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
     newValues: [{
         type: ConfigItemTypes;
         name: string;
@@ -46,7 +48,8 @@ export type AppConfigSetChangeValuesCmdPayload = {
 
 export type GlobalConfigSetChangeValuesCmdPayload = {
     environmentName: string,
-    version: string | null, // null for latest
+    schemaVersion: string,
+    iteration: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
     newValues: [{
         type: ConfigItemTypes;
         name: string;

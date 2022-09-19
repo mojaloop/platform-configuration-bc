@@ -30,12 +30,16 @@
 
 "use strict"
 
-import {AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
 import process from "process";
 
+
 const PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_CENTRAL_URL";
+
+const APP_CONFIG_SET_RESOURCENAME = "appConfigSets";
+const GLOBAL_CONFIG_SET_RESOURCENAME = "globalConfigSets";
 
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:()=>Promise<void>;
@@ -66,11 +70,11 @@ export class DefaultConfigProvider implements IConfigProvider {
         })
     }
 
-    async boostrap(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
+    async boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
         //const resp: AxiosResponse<any> =
-        await this._client.post("/bootstrap", configSetDto).then((resp:AxiosResponse)=>{
+        await this._client.post(`/${APP_CONFIG_SET_RESOURCENAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
             console.log(resp.data);
             return true;
         }).catch((err:AxiosError) => {
@@ -92,12 +96,12 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
-    async fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>{
+    async fetchAppConfigs(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>{
         this._checkInitialised();
 
         let appConfigSetData: AppConfigurationSet;
         try {
-            const resp = await this._client.get(`/configsets/${envName}/${bcName}/${appName}?version=${appVersion}`);
+            const resp = await this._client.get(`/${APP_CONFIG_SET_RESOURCENAME}/${envName}/${bcName}/${appName}?version=${appVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
@@ -108,15 +112,41 @@ export class DefaultConfigProvider implements IConfigProvider {
             return null;
         }
 
-        if(appConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
+        if(appConfigSetData.environmentName.toUpperCase() !== envName.toUpperCase()
+                || appConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
                 || appConfigSetData.applicationName.toUpperCase() !== appName.toUpperCase()
                 || appConfigSetData.applicationVersion != appVersion
                 || appConfigSetData.iterationNumber < 0){
-            console.warn("invalid configSet version received");
+            console.warn("Invalid AppConfigurationSet version received");
             return null;
         }
 
         return appConfigSetData;
+    }
+
+    async fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>{
+        this._checkInitialised();
+
+        let globalConfigurationSet: GlobalConfigurationSet;
+        try {
+            const resp = await this._client.get(`/${GLOBAL_CONFIG_SET_RESOURCENAME}/${envName}?latest`);
+            if(resp.status !== 200) {
+                return null;
+            }
+
+            globalConfigurationSet = resp.data[0] || null;
+
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+
+        if(globalConfigurationSet.environmentName.toUpperCase() !== envName.toUpperCase() || globalConfigurationSet.iterationNumber < 0){
+            console.warn("Invalid GlobalConfigurationSet version received");
+            return null;
+        }
+
+        return globalConfigurationSet;
     }
 
     // this will be called by the IConfigProvider implementation when changes are detected

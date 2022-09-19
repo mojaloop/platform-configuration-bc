@@ -38,6 +38,7 @@
         "node_modules/*"
       ]
     },
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "outDir": "./dist"
   }
 }

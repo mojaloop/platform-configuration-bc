@@ -28,14 +28,17 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
-import {AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 
 export interface IConfigProvider {
   init(): Promise<boolean>
-  boostrap(configSetDto:AppConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
-  fetch(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>
+  boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
+
+  fetchAppConfigs(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>;
+
+  fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>
 
   // this will be called by the IConfigProvider implementation when changes are detected
   setConfigChangeHandler(fn:()=>Promise<void>):void;

@@ -44,10 +44,20 @@ import {
     CouldNotStoreConfigSetError,
     ParameterNotFoundError,
     InvalidAppConfigurationSetError,
-    OnlyLatestVersionCanBeChangedError, GlobalConfigurationSetNotFoundError, InvalidGlobalConfigurationSetError
+    OnlyLatestSchemaVersionCanBeChangedError,
+    GlobalConfigurationSetNotFoundError,
+    InvalidGlobalConfigurationSetError,
+    OnlyLatestIterationCanBeChangedError
 } from "./errors";
 import {AppConfigSetChangeValuesCmdPayload, GlobalConfigSetChangeValuesCmdPayload} from "./commands";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
+
+enum AuditActions{
+    GlobalConfigSet_SchemaVersionCreated = "GlobalConfigSet_SchemaVersionCreated",
+    GlobalConfigSet_ValuesChanged = "GlobalConfigSet_ValuesChanged",
+    AppConfigSet_SchemaVersionCreated = "AppConfigSet_SchemaVersionCreated",
+    AppConfigSet_ValuesChanged = "AppConfigSet_ValuesChanged"
+}
 
 export class ConfigSetAggregate {
     private readonly _logger: ILogger;
@@ -62,11 +72,20 @@ export class ConfigSetAggregate {
         this._auditClient = auditClient;
     }
 
-    private async _notifyGlobalConfigSetChange(globalConfigSet:GlobalConfigurationSet){
-        // TODO _notifyPerAppConfigSetChange
+    private async _notifyNewSchema_globalConfigs(globalConfigSet:GlobalConfigurationSet){
+        // TODO notify
     }
-    private async _notifyAppConfigSetChange(appConfigSet:AppConfigurationSet){
-        // TODO _notifyPerAppConfigSetChange
+
+    private async _notifyNewSchema_appConfigs(appConfigSet:AppConfigurationSet){
+        // TODO notify
+    }
+
+    private async _notifyNewValues_globalConfigs(globalConfigSet:GlobalConfigurationSet){
+        // TODO notify
+    }
+
+    private async _notifyNewValues_appConfigs(appConfigSet:AppConfigurationSet){
+        // TODO notify
     }
 
     private _applyCurrentOrDefaultParamValues(targetParams:ConfigParameter[], sourceParams:ConfigParameter[] | null) {
@@ -169,7 +188,7 @@ export class ConfigSetAggregate {
     async processCreateAppConfigSetCmd(appConfigSet:AppConfigurationSet):Promise<void>{
         // TODO validate the configSet
         if(!this._validateAppConfigSet(appConfigSet)){
-            this._logger.warn(`invalid app configuration set for BC: ${appConfigSet?.boundedContextName}, APP: ${appConfigSet?.applicationName}, version: ${appConfigSet?.applicationVersion} and iterationNumber: ${appConfigSet?.iterationNumber}, ERROR `);
+            this._logger.warn(`invalid app configuration set for BC: ${appConfigSet?.boundedContextName}, APP: ${appConfigSet?.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet?.iterationNumber}, ERROR `);
             throw new InvalidAppConfigurationSetError();
         }
 
@@ -177,10 +196,10 @@ export class ConfigSetAggregate {
 
         if(latestVersion) {
             if (semver.compare(latestVersion.applicationVersion, appConfigSet.applicationVersion)==0) {
-                this._logger.warn(`received duplicate app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, version: ${appConfigSet.applicationVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING `);
+                this._logger.warn(`received duplicate app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING `);
                 throw new CannotCreateDuplicateConfigSetError();
             } else if (semver.compare(latestVersion.applicationVersion, appConfigSet.applicationVersion)==1) {
-                this._logger.error(`received app configuration set with lower version than latest for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, version: ${appConfigSet.applicationVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING with error`);
+                this._logger.error(`received app configuration set with lower version than latest for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING with error`);
                 throw new CannotCreateOverridePreviousVersionConfigSetError();
             }
         }
@@ -193,7 +212,7 @@ export class ConfigSetAggregate {
         // new configsets get 0 iterationNumber, newer versions of existing ones continue from the previous
         appConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
-        this._logger.info(`received app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, version: ${appConfigSet.applicationVersion} and iterationNumber: ${appConfigSet.iterationNumber}`);
+        this._logger.info(`received app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName} appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}`);
         const stored = await this._appConfigSetRepo.storeAppConfigSet(appConfigSet);
         if(!stored){
             throw new CouldNotStoreConfigSetError();
@@ -205,9 +224,9 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit("AppConfigSetCreated", true);
+        await this._auditClient.audit(AuditActions.AppConfigSet_SchemaVersionCreated, true);
 
-        await this._notifyAppConfigSetChange(appConfigSet);
+        await this._notifyNewSchema_appConfigs(appConfigSet);
     }
 
     async processChangeAppConfigSetValuesCmd(cmdPayload: AppConfigSetChangeValuesCmdPayload):Promise<void> {
@@ -218,8 +237,12 @@ export class ConfigSetAggregate {
             return Promise.reject(new AppConfigurationSetNotFoundError());
         }
 
-        if (cmdPayload.version && cmdPayload.version !== appConfigSet.applicationVersion){
-            return Promise.reject(new OnlyLatestVersionCanBeChangedError());
+        if (cmdPayload.schemaVersion !== appConfigSet.schemaVersion){
+            return Promise.reject(new OnlyLatestSchemaVersionCanBeChangedError());
+        }
+
+        if (cmdPayload.iteration !== appConfigSet.iterationNumber){
+            return Promise.reject(new OnlyLatestIterationCanBeChangedError());
         }
 
         // TODO return multiple errors instead of just one
@@ -261,9 +284,9 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit("AppConfigSetValueChanged", true);
+        await this._auditClient.audit(AuditActions.AppConfigSet_ValuesChanged, true);
 
-        await this._notifyAppConfigSetChange(appConfigSet);
+        await this._notifyNewValues_appConfigs(appConfigSet);
     }
 
     /**************************************
@@ -271,7 +294,7 @@ export class ConfigSetAggregate {
      ************************************/
 
     private _validateGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):boolean{
-        if(!globalConfigSet.environmentName || !globalConfigSet.version) {
+        if(!globalConfigSet.environmentName || !globalConfigSet.schemaVersion) {
             return false;
         }
 
@@ -285,11 +308,11 @@ export class ConfigSetAggregate {
             return false;
         }
 
-        if(!globalConfigSet.version || typeof(globalConfigSet.version) !== "string"){
+        if(!globalConfigSet.schemaVersion || typeof(globalConfigSet.schemaVersion) !== "string"){
             return false;
         }
-        const parsed = semver.coerce(globalConfigSet.version);
-        if(!parsed || parsed.raw != globalConfigSet.version) {
+        const parsed = semver.coerce(globalConfigSet.schemaVersion);
+        if(!parsed || parsed.raw != globalConfigSet.schemaVersion) {
             // the 2nd check assures that formats like "v1.0.1" which are considered valid by semver are rejected, we want strict semver
             return false;
         }
@@ -302,6 +325,11 @@ export class ConfigSetAggregate {
         return allVersions;
     }
 
+    async getGlobalConfigSetVersion(envName:string, version:string): Promise<GlobalConfigurationSet | null>{
+        const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(envName, version);
+        return latestVersion;
+    }
+
     async getLatestGlobalConfigSet(envName:string): Promise<GlobalConfigurationSet | null>{
         const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(envName);
         return latestVersion;
@@ -310,18 +338,18 @@ export class ConfigSetAggregate {
     async processCreateGlobalConfigSetCmd(globalConfigSet:GlobalConfigurationSet):Promise<void>{
         // TODO validate the configSet
         if(!this._validateGlobalConfigSet(globalConfigSet)){
-            this._logger.warn(`invalid global configuration set for env: ${globalConfigSet?.environmentName} version: ${globalConfigSet?.version} and iterationNumber: ${globalConfigSet?.iterationNumber}, ERROR `);
+            this._logger.warn(`invalid global configuration set for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, ERROR `);
             throw new InvalidGlobalConfigurationSetError();
         }
 
         const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(globalConfigSet.environmentName);
 
         if(latestVersion) {
-            if (semver.compare(latestVersion.version, globalConfigSet.version)==0) {
-                this._logger.warn(`received duplicate global configuration set for for env: ${globalConfigSet?.environmentName} version: ${globalConfigSet?.version} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING `);
+            if (semver.compare(latestVersion.schemaVersion, globalConfigSet.schemaVersion)==0) {
+                this._logger.warn(`received duplicate global configuration set for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING `);
                 throw new CannotCreateDuplicateConfigSetError();
-            } else if (semver.compare(latestVersion.version, globalConfigSet.version)==1) {
-                this._logger.error(`received global configuration set with lower version than latest for for env: ${globalConfigSet?.environmentName} version: ${globalConfigSet?.version} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING with error`);
+            } else if (semver.compare(latestVersion.schemaVersion, globalConfigSet.schemaVersion)==1) {
+                this._logger.error(`received global configuration set with lower version than latest for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING with error`);
                 throw new CannotCreateOverridePreviousVersionConfigSetError();
             }
         }
@@ -335,7 +363,7 @@ export class ConfigSetAggregate {
         // new configsets get 0 iterationNumber, newer versions of existing ones continue from the previous
         globalConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
-        this._logger.info(`received configuration set for for env: ${globalConfigSet?.environmentName} version: ${globalConfigSet?.version} and iterationNumber: ${globalConfigSet?.iterationNumber}`);
+        this._logger.info(`received configuration set for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}`);
         const stored = await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
         if(!stored){
             throw new CouldNotStoreConfigSetError();
@@ -347,9 +375,9 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit("GlobalConfigSetCreated", true);
+        await this._auditClient.audit(AuditActions.GlobalConfigSet_SchemaVersionCreated, true);
 
-        await this._notifyGlobalConfigSetChange(globalConfigSet);
+        await this._notifyNewSchema_globalConfigs(globalConfigSet);
     }
 
     async processChangeGlobalConfigSetValuesCmd(cmdPayload: GlobalConfigSetChangeValuesCmdPayload):Promise<void> {
@@ -360,8 +388,12 @@ export class ConfigSetAggregate {
             return Promise.reject(new GlobalConfigurationSetNotFoundError());
         }
 
-        if (cmdPayload.version && cmdPayload.version !== globalConfigSet.version){
-            return Promise.reject(new OnlyLatestVersionCanBeChangedError());
+        if (cmdPayload.schemaVersion !== globalConfigSet.schemaVersion){
+            return Promise.reject(new OnlyLatestSchemaVersionCanBeChangedError());
+        }
+
+        if (cmdPayload.iteration !== globalConfigSet.iterationNumber){
+            return Promise.reject(new OnlyLatestIterationCanBeChangedError());
         }
 
         // TODO return multiple errors instead of just one
@@ -403,8 +435,8 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit("GlobalConfigSetValueChanged", true);
+        await this._auditClient.audit(AuditActions.GlobalConfigSet_ValuesChanged, true);
 
-        await this._notifyGlobalConfigSetChange(globalConfigSet);
+        await this._notifyNewValues_globalConfigs(globalConfigSet);
     }
 }

@@ -28,10 +28,14 @@
  --------------
  ******/
 
-'use strict'
+"use strict"
 
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 
-export * from "./configuration_interfaces";
-export * from "./configuration_client";
-export * from "./iconfig_provider";
-export * from "./default_provider";
+export type WriteGlobalConfigurationSet = {
+    environmentName: string;
+    schemaVersion: string;
+    parameters: { name: string; type: ConfigParameterTypes; defaultValue: any; description: string; }[];
+    featureFlags: { name: string; defaultValue: boolean; description: string; }[];
+    secrets: { name: string; defaultValue: string | null; description: string }[];
+}

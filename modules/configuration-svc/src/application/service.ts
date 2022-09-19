@@ -32,74 +32,76 @@
 import {existsSync} from "fs"
 import {Server} from "http";
 import express from "express";
-import {LogLevel, ILogger} from "@mojaloop/logging-bc-public-types-lib";
+import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
 import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
-import {AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
-
 import {
     ConfigSetAggregate,
-    IAppConfigSetRepository, IGlobalConfigSetRepository
+    IAppConfigSetRepository,
+    IGlobalConfigSetRepository
 } from "@mojaloop/platform-configuration-bc-domain-lib";
-
 import {
     AuditClient,
     KafkaAuditClientDispatcher,
     LocalAuditClientCryptoProvider
 } from "@mojaloop/auditing-bc-client-lib";
-import {ExpressRoutes} from "./routes";
-import {IAuditClientCryptoProvider, IAuditClientDispatcher} from "@mojaloop/auditing-bc-client-lib/dist/interfaces";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
-import http from "http";
+import {AppConfigsRoutes} from "./appconfigs_routes";
+import {GlobalConfigsRoutes} from "./globalconfigs_routes";
 
 const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
+const LOGLEVEL:LogLevel = process.env["LOG_LEVEL"] as LogLevel || LogLevel.DEBUG;
 
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
 const APP_VERSION = "0.0.1";
-const LOGLEVEL = LogLevel.DEBUG;
 
 const SVC_DEFAULT_HTTP_PORT = 3100;
 
 const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
 const KAFKA_AUDITS_TOPIC = process.env["KAFKA_AUDITS_TOPIC"] || "audits";
 const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
-const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "./tmp_key_file";
+const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "./dist/tmp_key_file";
 
-let logger: ILogger;
-let app:express.Express;
-let routes: ExpressRoutes;
-let configSetAgg:ConfigSetAggregate;
-
-let expressServer: Server;
+const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
+const APPCONFIGSET_URL_RESOURCE_NAME = "appConfigSets";
 
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
 }
 
-function setupExpress() {
-    app = express();
+
+// only the vars required outside the start fn
+let logger:ILogger;
+let expressServer: Server;
+
+function setupExpress(configSetAgg:ConfigSetAggregate, loggerParam:ILogger): express.Express {
+    const app = express();
     app.use(express.json()); // for parsing application/json
     app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
 
-    routes = new ExpressRoutes(configSetAgg, logger);
+    const globalConfigsRoutes = new GlobalConfigsRoutes(configSetAgg, loggerParam);
+    const appConfigsRoutes = new AppConfigsRoutes(configSetAgg, loggerParam);
 
-    app.use("/", routes.Router);
+    app.use(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}`, globalConfigsRoutes.Router);
+    app.use(`/${APPCONFIGSET_URL_RESOURCE_NAME}`, appConfigsRoutes.Router);
 
     app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
         // catch all
         res.sendStatus(404);
     });
+
+    return app;
 }
 
 
 export async function start(
-        logger?:ILogger,
+        loggerParam?:ILogger,
         auditClient?:IAuditClient,
         appConfigRepo?:IAppConfigSetRepository,
         globalConfigRepo?:IGlobalConfigSetRepository):Promise<void> {
 
-    if(!logger) {
+    if(!loggerParam) {
         logger = new KafkaLogger(
                 BC_NAME,
                 APP_NAME,
@@ -109,6 +111,8 @@ export async function start(
                 LOGLEVEL
         );
         await (logger as KafkaLogger).start();
+    }else{
+        logger = loggerParam;
     }
 
     if(!auditClient) {
@@ -127,6 +131,7 @@ export async function start(
         await auditClient.init();
     }
 
+    let configSetAgg: ConfigSetAggregate;
     if(!appConfigRepo || ! globalConfigRepo){
         let repo: any;
         repo =  new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
@@ -136,7 +141,7 @@ export async function start(
         configSetAgg = new ConfigSetAggregate(appConfigRepo, globalConfigRepo, logger, auditClient);
     }
 
-    setupExpress();
+    const app = setupExpress(configSetAgg, logger);
 
     let portNum = SVC_DEFAULT_HTTP_PORT;
     if(process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {

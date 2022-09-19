@@ -65,26 +65,24 @@ export type ConfigSecret = {
     currentValue: string;
 }
 
-export type AppConfigurationSet = {
+export type ConfigurationSet = {
     environmentName: string;                        // target environment name
+    schemaVersion: string;                          // config schema version (semver format)
+    iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
+    parameters: ConfigParameter[];                  // parameter list
+    featureFlags: ConfigFeatureFlag[];              // featureFlag list
+    secrets: ConfigSecret[];                        // secret list
+}
+
+// currently a global config set has no special props
+export type GlobalConfigurationSet = ConfigurationSet;
+
+export type AppConfigurationSet = GlobalConfigurationSet & {
     boundedContextName: string;                     // target bounded context
     applicationName: string;                        // target application name
     applicationVersion: string;                     // target app version (semver format)
-    iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
-    readonly parameters: ConfigParameter[];         // parameter list
-    readonly featureFlags: ConfigFeatureFlag[];     // featureFlag list
-    readonly secrets: ConfigSecret[];               // secret list
 }
 
-// Configuration set is for the whole platform and not a single app
-export type GlobalConfigurationSet = {
-    environmentName: string;                        // target environment name
-    version: string;                                // global configSet version (semver format)
-    iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
-    readonly parameters: ConfigParameter[];         // parameter list
-    readonly featureFlags: ConfigFeatureFlag[];     // featureFlag list
-    readonly secrets: ConfigSecret[];               // secret list
-}
 
 export enum EnvironmentType {
     "DEVELOPMENT" = "DEVELOPMENT",

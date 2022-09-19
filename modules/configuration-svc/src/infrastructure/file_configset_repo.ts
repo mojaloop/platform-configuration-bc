@@ -124,6 +124,8 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         return JSON.parse(JSON.stringify(appConfigSet));
     }
 
+
+
     private _configSetIdString(envName:string, bcName:string, appName:string): string{
         return envName.toUpperCase()+"::"+bcName.toUpperCase()+"::"+appName.toUpperCase();
     }
@@ -135,14 +137,14 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             return [];
         }
 
-        // sort by decreasing version order (latest version first)
-        configs.sort((a: AppConfigurationSet, b: AppConfigurationSet) => semver.compare(b.applicationVersion, a.applicationVersion));
+        // sort by decreasing schemaVersion order (latest version first)
+        configs.sort((a: AppConfigurationSet, b: AppConfigurationSet) => semver.compare(b.schemaVersion, a.schemaVersion));
 
         return configs;
     }
 
-    private _getAppConfigLatestIteration(completeVersionConfigs:AppConfigurationSet[], version:string):AppConfigurationSet | null{
-        const versionConfigSets: AppConfigurationSet[] = completeVersionConfigs.filter(value => value.applicationVersion === version);
+    private _getAppConfigLatestIteration(completeVersionConfigs:AppConfigurationSet[], schemaVersion:string):AppConfigurationSet | null{
+        const versionConfigSets: AppConfigurationSet[] = completeVersionConfigs.filter(value => value.schemaVersion === schemaVersion);
 
         if(versionConfigSets.length <=0 ){
             return null;
@@ -170,16 +172,17 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             return [];
         }
 
-        return allVersions;
+        return allVersions.map(value => this._deepCopyAppConfigSet(value));
     }
 
+    // returns the latest iteration for the latest schema version
     async fetchLatestAppConfigSet(envName:string, bcName: string, appName: string): Promise<AppConfigurationSet | null> {
         const allVersions:AppConfigurationSet[] = this._getAppConfigVersions(envName, bcName, appName);
         if(allVersions.length <= 0){
             return null;
         }
 
-        const latestVersion = allVersions[0].applicationVersion;
+        const latestVersion = allVersions[0].schemaVersion;
         const lastPatch = this._getAppConfigLatestIteration(allVersions, latestVersion)
 
         if(!lastPatch){
@@ -219,13 +222,18 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
         await this._saveToFile();
 
-        this._logger.info(`In env:  ${appConfigSet.environmentName} - stored app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, version: ${appConfigSet.applicationVersion} and iteration number: ${appConfigSet.iterationNumber}`);
+        this._logger.info(`In env:  ${appConfigSet.environmentName} - stored app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, appVersion: ${appConfigSet.applicationVersion}, schemaVersion: ${appConfigSet.schemaVersion} and iteration number: ${appConfigSet.iterationNumber}`);
         return true;
     }
 
     /**************************************
      * Global config set code
      ************************************/
+
+    private _deepCopyGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):GlobalConfigurationSet{
+        // we need this to de-reference the objects in memory when passing them to callers
+        return JSON.parse(JSON.stringify(globalConfigSet));
+    }
 
     // global config set specific
     async storeGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):Promise<boolean>{
@@ -234,9 +242,10 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
         await this._saveToFile();
 
-        this._logger.info(`In env:  ${globalConfigSet.environmentName} - stored global configuration set with version: ${globalConfigSet.version} and iteration number: ${globalConfigSet.iterationNumber}`);
+        this._logger.info(`In env:  ${globalConfigSet.environmentName} - stored global configuration set with schemaVersion: ${globalConfigSet.schemaVersion} and iteration number: ${globalConfigSet.iterationNumber}`);
         return true;
     }
+
 
     async fetchGlobalAppConfigSets(envName:string):Promise<GlobalConfigurationSet[]>{
         if(this._globalConfigSet.length <= 0)
@@ -246,7 +255,21 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         const ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase());
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
 
-        return ret;
+        return ret.map(value => this._deepCopyGlobalConfigSet(value));
+    }
+
+    async fetchGlobalConfigSetVersion(envName:string, version:string):Promise<GlobalConfigurationSet | null>{
+        if(this._globalConfigSet.length <=0 ){
+            return null;
+        }
+
+        // filter per env and version
+        let ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase() && value.schemaVersion === version);
+
+        ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
+        const lastIteraction = ret[0]
+
+        return this._deepCopyGlobalConfigSet(lastIteraction) ?? null;
     }
 
     async fetchLatestGlobalConfigSet(envName:string):Promise<GlobalConfigurationSet | null>{
@@ -257,14 +280,14 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         // filter per env
         let ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase());
         // sort by decreasing version order (latest version first)
-        ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => semver.compare(b.version, a.version));
-        const lastVersion = ret[0].version;
+        ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => semver.compare(b.schemaVersion, a.schemaVersion));
+        const lastVersion = ret[0].schemaVersion;
 
-        ret = ret.filter(value => value.version === lastVersion);
+        ret = ret.filter(value => value.schemaVersion === lastVersion);
 
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
         const lastIteraction = ret[0]
 
-        return lastIteraction ?? null;
+        return this._deepCopyGlobalConfigSet(lastIteraction) ?? null;
     }
 }
