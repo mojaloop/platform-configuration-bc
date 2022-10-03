@@ -1,5 +1,5 @@
 "use strict"
-
+import semver from "semver";
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 
 // must use relative path imports pointing to the dist dirs of own repo packages
@@ -27,6 +27,9 @@ describe("client-lib ConfigurationSet tests", () => {
 
         configClient = new ConfigurationClient(ENV_NAME, BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION, defaultConfigProvider);
         //configClient = new ConfigurationClient(ENV_NAME, BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION);
+
+        const ver = new semver.SemVer("0.1.0");
+        console.log(ver);
     })
 
     afterAll(async () => {

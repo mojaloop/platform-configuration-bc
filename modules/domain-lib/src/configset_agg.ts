@@ -230,8 +230,7 @@ export class ConfigSetAggregate {
     }
 
     async processChangeAppConfigSetValuesCmd(cmdPayload: AppConfigSetChangeValuesCmdPayload):Promise<void> {
-        let appConfigSet:AppConfigurationSet | null;
-        appConfigSet = await this.getLatestAppConfigSet(cmdPayload.environmentName, cmdPayload.boundedContextName, cmdPayload.applicationName);
+        const appConfigSet = await this.getLatestAppConfigSet(cmdPayload.environmentName, cmdPayload.boundedContextName, cmdPayload.applicationName);
 
         if(!appConfigSet){
             return Promise.reject(new AppConfigurationSetNotFoundError());
@@ -381,8 +380,7 @@ export class ConfigSetAggregate {
     }
 
     async processChangeGlobalConfigSetValuesCmd(cmdPayload: GlobalConfigSetChangeValuesCmdPayload):Promise<void> {
-        let globalConfigSet:GlobalConfigurationSet | null;
-        globalConfigSet = await this.getLatestGlobalConfigSet(cmdPayload.environmentName);
+        const globalConfigSet = await this.getLatestGlobalConfigSet(cmdPayload.environmentName);
 
         if(!globalConfigSet){
             return Promise.reject(new GlobalConfigurationSetNotFoundError());

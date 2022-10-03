@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "prepare": "husky install",
-    "start": "npm -ws --parallel -v run start",
+    "start": "npm -ws --parallel run start",
     "start:client-lib": "npm -w @mojaloop/platform-configuration-bc-client-lib run start",
     "start:configuration-svc": "npm -w @mojaloop/platform-configuration-bc-configuration-svc run start",
     "build": "npm -ws run build",
@@ -25,7 +25,7 @@
     "standard": "npm run --no-progress --stream lint'",
     "lint": "npm -ws run lint",
     "lint:fix": "npm -ws run lint:fix",
-    "test:unit": "npm -ws run test:unit",
+    "test:unit": "npm -ws run --if-present test:unit",
     "test:coverage": "npm -ws --parallel run test:coverage",
     "test:coverage-check": "npm -ws --parallel run test:coverage-check",
     "test:integration": "jest --passWithNoTests --testMatch '**/test/integration/**/*.test.ts'",

@@ -35,6 +35,7 @@ import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "@mojaloop/pla
 import {GlobalConfigurationSet, AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import fs from "fs";
+import {watch} from "node:fs";
 
 
 //type ConfigSetMap = Map<string, ConfigurationSet[]>;
@@ -45,17 +46,20 @@ declare type DataFileStruct = {
 };
 
 export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfigSetRepository{
-    private readonly _filePath: string;
     private readonly  _logger: ILogger;
+    private readonly _filePath: string;
     private _globalConfigSet : GlobalConfigurationSet[] = [];
     private _appConfigSets : Map<string, AppConfigurationSet[]> = new Map<string, AppConfigurationSet[]>();
 
     constructor(filePath:string, logger: ILogger) {
-        this._logger = logger;
+        this._logger = logger.createChild(this.constructor.name);
         this._filePath = filePath;
     }
 
     private async _loadFromFile():Promise<boolean>{
+        this._globalConfigSet = [];
+        this._appConfigSets.clear();
+
         let fileData: DataFileStruct;
         try{
             const strContents = await readFile(this._filePath, "utf8");
@@ -79,6 +83,9 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         }catch (e) {
             throw new Error("cannot read FileConfigSetRepo storage file");
         }
+
+        this._logger.info(`Successfully read file contents - globalConfigSet count: ${this._globalConfigSet.length} and appConfigSets count: ${this._appConfigSets.size}`);
+
         return true;
     }
 
@@ -105,14 +112,28 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     async init(): Promise<void>{
         const exists = fs.existsSync(this._filePath);
 
-        if(fs.existsSync(this._filePath)){
-            const loadSuccess = await this._loadFromFile();
-            if(!loadSuccess){
-                throw new Error("Error loading FileConfigSetRepo file")
-            }else{
-                this._logger.info(`FileConfigSetRepo - loaded ${this._appConfigSets.size} configsets at init`);
-            }
+        // if not exists we skip, it will be loaded after
+        if(!exists){
+            this._logger.warn("FileConfigSetRepo data file does not exist, will be created at first write - filepath: "+this._filePath);
+            return;
         }
+
+        const loadSuccess = await this._loadFromFile();
+        if(!loadSuccess){
+            throw new Error("Error loading FileConfigSetRepo file")
+        }
+
+        let fsWait:NodeJS.Timeout | undefined; // debounce wait
+        watch(this._filePath, async (eventType, filename) => {
+            if (eventType === "change") {
+                if (fsWait) return;
+                fsWait = setTimeout(() => {
+                    fsWait = undefined;
+                }, 100);
+                this._logger.info(`FileConfigSetRepo file changed, with file path: "${this._filePath}" - reloading...`);
+                await this._loadFromFile();
+            }
+        });
     }
 
     /**************************************
@@ -123,7 +144,6 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         // we need this to de-reference the objects in memory when passing them to callers
         return JSON.parse(JSON.stringify(appConfigSet));
     }
-
 
 
     private _configSetIdString(envName:string, bcName:string, appName:string): string{
@@ -264,7 +284,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         }
 
         // filter per env and version
-        let ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase() && value.schemaVersion === version);
+        const ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase() && value.schemaVersion === version);
 
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
         const lastIteraction = ret[0]

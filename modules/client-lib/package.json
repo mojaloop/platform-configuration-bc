@@ -16,8 +16,6 @@
     "/dist"
   ],
   "scripts": {
-    "start": "npm run service",
-    "service": "tsc && node dist/index.js --config ../../.env",
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "rm -Rf dist",

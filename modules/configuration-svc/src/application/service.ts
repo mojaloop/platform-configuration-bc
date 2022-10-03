@@ -49,19 +49,19 @@ import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {AppConfigsRoutes} from "./appconfigs_routes";
 import {GlobalConfigsRoutes} from "./globalconfigs_routes";
 
-const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
-const LOGLEVEL:LogLevel = process.env["LOG_LEVEL"] as LogLevel || LogLevel.DEBUG;
-
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
-const APP_VERSION = "0.0.1";
+const APP_VERSION = process.env.npm_package_version || "0.0.1";
+const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
+const LOG_LEVEL:LogLevel = process.env["LOG_LEVEL"] as LogLevel || LogLevel.DEBUG;
 
 const SVC_DEFAULT_HTTP_PORT = 3100;
 
 const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
 const KAFKA_AUDITS_TOPIC = process.env["KAFKA_AUDITS_TOPIC"] || "audits";
 const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
-const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "./dist/tmp_key_file";
+const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "/app/data/audit_private.pem";
+const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
 const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
 const APPCONFIGSET_URL_RESOURCE_NAME = "appConfigSets";
@@ -103,12 +103,12 @@ export async function start(
 
     if(!loggerParam) {
         logger = new KafkaLogger(
-                BC_NAME,
-                APP_NAME,
-                APP_VERSION,
-                kafkaProducerOptions,
-                KAFKA_LOGS_TOPIC,
-                LOGLEVEL
+            BC_NAME,
+            APP_NAME,
+            APP_VERSION,
+            kafkaProducerOptions,
+            KAFKA_LOGS_TOPIC,
+            LOG_LEVEL
         );
         await (logger as KafkaLogger).start();
     }else{
@@ -133,8 +133,7 @@ export async function start(
 
     let configSetAgg: ConfigSetAggregate;
     if(!appConfigRepo || ! globalConfigRepo){
-        let repo: any;
-        repo =  new FileConfigSetRepo("./dist/configSetRepoTempStorageFile.json", logger);
+        const repo =  new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
         await repo.init();
         configSetAgg = new ConfigSetAggregate(repo, repo, logger, auditClient);
     }else{

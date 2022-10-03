@@ -31,4 +31,6 @@
 "use strict"
 
 import {start} from "./service";
-start().then(r => {});
+start().then(() => {
+    console.log("Service start complete");
+});
