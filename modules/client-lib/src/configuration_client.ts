@@ -126,17 +126,16 @@ export class ConfigurationClient {
         if(this._standAloneMode)
             return;
 
-        const appConfigSetDto:AppConfigurationSet|null = await this._configProvider!.fetchAppConfigs(this._environmentName, this._boundedContextName, this._applicationName, this._applicationVersion);
+        const appConfigSetDto:AppConfigurationSet|null = await this._configProvider!.fetchAppConfigs(this._environmentName, this._boundedContextName, this._applicationName, this._appConfigs.schemaVersion);
         if(!appConfigSetDto){
             // TODO log
-            throw new Error(`Could not fetch AppConfigurationSet for ENV: ${this._environmentName} - BC: ${this._boundedContextName} - APP: ${this._applicationName} - APP_VERSION: ${this._applicationVersion}`);
+            throw new Error(`Could not fetch AppConfigurationSet for ENV: ${this._environmentName} - BC: ${this._boundedContextName} - APP: ${this._applicationName} - APP_SCHEMA_VERSION: ${this._appConfigs.schemaVersion}`);
         }
 
         if(appConfigSetDto.environmentName !== this._environmentName ||
                 appConfigSetDto.schemaVersion !== this._appConfigs.schemaVersion ||
                 appConfigSetDto.applicationName !== this._applicationName ||
-                appConfigSetDto.boundedContextName !== this._boundedContextName ||
-                appConfigSetDto.applicationVersion !== this._applicationVersion){
+                appConfigSetDto.boundedContextName !== this._boundedContextName){
             throw new Error("Received AppConfiguration doesn't match current configuration (env name, schema version, app name, bc name or app version)");
         }
 
