@@ -107,10 +107,16 @@ export class ConfigurationClient {
         if(this._standAloneMode)
             return;
 
-        const globalConfigSetDto:GlobalConfigurationSet|null = await this._configProvider!.fetchGlobalConfigs(this._environmentName);
+        let globalConfigSetDto: GlobalConfigurationSet | null = null;
+        try {
+            globalConfigSetDto = await this._configProvider!.fetchGlobalConfigs(this._environmentName);
+        }catch(err:any){
+            throw new Error(`Could not fetch GlobalConfigurationSet for ENV: ${this._environmentName} - ${err?.message}`);
+        }
+
         if(!globalConfigSetDto){
-            // TODO log
-            throw new Error(`Could not fetch GlobalConfigurationSet for ENV: ${this._environmentName}`);
+            // no global config found
+            return;
         }
 
         if(globalConfigSetDto.environmentName !== this._environmentName){

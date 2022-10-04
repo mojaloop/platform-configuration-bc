@@ -140,6 +140,7 @@ export class DefaultConfigProvider implements IConfigProvider {
             if(error && error.response && error.response.status === 404){
                 return null;
             }
+
             console.error(error);
             return null;
         }
