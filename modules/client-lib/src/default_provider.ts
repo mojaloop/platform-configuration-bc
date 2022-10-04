@@ -96,12 +96,12 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
-    async fetchAppConfigs(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>{
+    async fetchAppConfigs(envName:string, bcName:string, appName:string, schemaVersion:string): Promise<AppConfigurationSet | null>{
         this._checkInitialised();
 
         let appConfigSetData: AppConfigurationSet;
         try {
-            const resp = await this._client.get(`/${APP_CONFIG_SET_RESOURCENAME}/${envName}/${bcName}/${appName}?version=${appVersion}`);
+            const resp = await this._client.get(`/${APP_CONFIG_SET_RESOURCENAME}/${envName}/${bcName}/${appName}?version=${schemaVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
@@ -115,9 +115,9 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(appConfigSetData.environmentName.toUpperCase() !== envName.toUpperCase()
                 || appConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
                 || appConfigSetData.applicationName.toUpperCase() !== appName.toUpperCase()
-                || appConfigSetData.applicationVersion != appVersion
+                || appConfigSetData.schemaVersion != schemaVersion
                 || appConfigSetData.iterationNumber < 0){
-            console.warn("Invalid AppConfigurationSet version received");
+            console.warn("Invalid AppConfigurationSet version received in DefaultConfigProvider.fetchAppConfigs(), must match bc name, app name and config schema version");
             return null;
         }
 
@@ -142,7 +142,7 @@ export class DefaultConfigProvider implements IConfigProvider {
         }
 
         if(globalConfigurationSet.environmentName.toUpperCase() !== envName.toUpperCase() || globalConfigurationSet.iterationNumber < 0){
-            console.warn("Invalid GlobalConfigurationSet version received");
+            console.warn("Invalid GlobalConfigurationSet version received in DefaultConfigProvider.fetchGlobalConfigs");
             return null;
         }
 
