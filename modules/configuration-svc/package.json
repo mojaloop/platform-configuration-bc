@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "start": "tsc && npm run service",
+    "start:dev": "tsc && AUDIT_CERT_FILE_PATH=dist/tmp_key_file CONFIG_REPO_STORAGE_FILE_PATH=dist/configSetRepoTempStorageFile.json npm run service",
     "service": "node dist/application/index.js",
     "build": "npm exec tsc",
     "watch": "npm exec tsc -w",

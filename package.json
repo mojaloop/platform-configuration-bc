@@ -14,8 +14,7 @@
   "scripts": {
     "prepare": "husky install",
     "start": "npm -ws --parallel run start",
-    "start:client-lib": "npm -w @mojaloop/platform-configuration-bc-client-lib run start",
-    "start:configuration-svc": "npm -w @mojaloop/platform-configuration-bc-configuration-svc run start",
+    "start:configuration-svc": "npm -w @mojaloop/platform-configuration-bc-configuration-svc run service",
     "build": "npm -ws run build",
     "watch": "npm -ws --parallel  run watch",
     "clean": "npm run clean:dist",

@@ -136,7 +136,10 @@ export class DefaultConfigProvider implements IConfigProvider {
 
             globalConfigurationSet = resp.data[0] || null;
 
-        } catch (error) {
+        } catch (error: any) {
+            if(error && error.response && error.response.status === 404){
+                return null;
+            }
             console.error(error);
             return null;
         }

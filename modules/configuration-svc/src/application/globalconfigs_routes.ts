@@ -121,7 +121,7 @@ export class GlobalConfigsRoutes {
             retGlobalConfigSets = await this._agg.getAllGlobalConfigSets(envParam);
         }
 
-        if (!retGlobalConfigSets) {
+        if (retGlobalConfigSets.length <= 0) {
             this._logger.debug("global configset not found");
             res.sendStatus(404);
             return;
