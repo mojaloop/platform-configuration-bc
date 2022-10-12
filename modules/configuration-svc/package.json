@@ -1,6 +1,6 @@
 {
   "name": "@mojaloop/platform-configuration-bc-configuration-svc",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "mojaloop platform configuration service",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/modules/configuration-svc",
@@ -26,7 +26,6 @@
     "clean:npm": "rm -Rf node_modules",
     "pretest": "npm run build",
     "standard": "npm run lint",
-    "docker:build": "npm run build && docker build . -t \"mojaloop/platform-configuration-bc-configuration-svc\"",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
     "test:unit": "jest --passWithNoTests --testMatch '**/test/unit/**/*.test.ts'",

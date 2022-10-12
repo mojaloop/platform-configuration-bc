@@ -55,6 +55,8 @@ export class ConfigurationClient {
         this._configProvider = configProvider;
         this._environmentName = environmentName;
 
+        // TODO: validate params
+
         this._boundedContextName = boundedContext;
         this._applicationName = application;
         this._applicationVersion = appVersion;
