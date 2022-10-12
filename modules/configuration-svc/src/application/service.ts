@@ -60,7 +60,7 @@ const SVC_DEFAULT_HTTP_PORT = 3100;
 const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
 const KAFKA_AUDITS_TOPIC = process.env["KAFKA_AUDITS_TOPIC"] || "audits";
 const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
-const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "/app/data/audit_private.pem";
+const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "./app/data/audit_private.pem";
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
 const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
