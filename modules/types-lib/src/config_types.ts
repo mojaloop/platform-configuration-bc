@@ -28,13 +28,22 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
+
+export type ConfigParameterListItem = {
+    id: string;
+    description: string;
+    value: string;
+};
+
+export type ConfigParameterList = ConfigParameterList[];
 
 export enum ConfigParameterTypes {
     "STRING" = "STRING",
     "BOOL" = "BOOL",
     "INT_NUMBER" = "INT_NUMBER",
-    "FLOAT_NUMBER" = "FLOAT_NUMBER"
+    "FLOAT_NUMBER" = "FLOAT_NUMBER",
+    "LIST" = "LIST",
 }
 
 export enum ConfigItemTypes {
