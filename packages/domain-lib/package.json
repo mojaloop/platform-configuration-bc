@@ -34,13 +34,13 @@
     "dep:update": "ncu -e 2 -u"
   },
   "dependencies": {
-    "@mojaloop/auditing-bc-client-lib": "^0.0.3",
-    "@mojaloop/auditing-bc-public-types-lib": "^0.0.4",
-    "@mojaloop/logging-bc-client-lib": "^0.0.10",
-    "@mojaloop/platform-configuration-bc-types-lib": "~0.1.0",
-    "semver": "^7.3.7"
+    "@mojaloop/auditing-bc-client-lib": "^0.0.10",
+    "@mojaloop/auditing-bc-public-types-lib": "^0.0.11",
+    "@mojaloop/logging-bc-client-lib": "^0.1.17",
+    "@mojaloop/platform-configuration-bc-types-lib": "~0.1.14",
+    "semver": "^7.3.8"
   },
   "devDependencies": {
-    "@types/semver": "^7.3.9"
+    "@types/semver": "^7.3.13"
   }
 }

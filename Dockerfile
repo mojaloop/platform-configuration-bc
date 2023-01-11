@@ -1,5 +1,5 @@
 ########################################
-FROM node:16.13-alpine as builder
+FROM node:18.13-alpine as builder
 
 # Create app directory
 WORKDIR /app
@@ -14,9 +14,9 @@ RUN apk add --no-cache -t build-dependencies make gcc g++ python3 libtool libres
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 COPY package*.json ./
 
-COPY modules/domain-lib/package.json ./modules/domain-lib/
-COPY modules/types-lib/package.json ./modules/types-lib/
-COPY modules/configuration-svc/package.json ./modules/configuration-svc/
+COPY packages/domain-lib/package.json ./packages/domain-lib/
+COPY packages/types-lib/package.json ./packages/types-lib/
+COPY packages/configuration-svc/package.json ./packages/configuration-svc/
 
 #RUN ls -la
 
@@ -30,18 +30,18 @@ RUN npm install
 # root tsconfig.json
 COPY tsconfig.json ./
 
-# copy required supporting modules/packages (only the private ones not published to npm)
-COPY modules/domain-lib ./modules/domain-lib
-COPY modules/types-lib ./modules/types-lib
+# copy required supporting packages/packages (only the private ones not published to npm)
+COPY packages/domain-lib ./packages/domain-lib
+COPY packages/types-lib ./packages/types-lib
 
 # copy service code
-COPY modules/configuration-svc ./modules/configuration-svc
+COPY packages/configuration-svc ./packages/configuration-svc
 
 
 #RUN ls -la
-#RUN ls -la ./modules/domain-lib
-#RUN ls -la ./modules/configuration-svc
-#RUN ls -la ./node_modules/@mojaloop/
+#RUN ls -la ./packages/domain-lib
+#RUN ls -la ./packages/configuration-svc
+#RUN ls -la ./node_packages/@mojaloop/
 
 # build
 RUN npm run build

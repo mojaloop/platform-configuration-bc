@@ -28,6 +28,6 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
 
-export * from './config_types'
+export * from "./config_types";
