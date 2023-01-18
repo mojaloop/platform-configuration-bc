@@ -28,7 +28,7 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
 
 
 export * from "./configuration_interfaces";

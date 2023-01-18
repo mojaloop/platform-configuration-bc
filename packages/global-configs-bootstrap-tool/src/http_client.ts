@@ -28,7 +28,7 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
 import axios, {AxiosError, AxiosInstance, AxiosResponse} from "axios/index";
 
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
@@ -48,7 +48,7 @@ export class ConfigurationHttpClient {
             configSvcBaseUrl = url.toString();
         } catch (err) {
             const newErr = new Error("ConfigurationHttpClient cannot continue, invalid configSvcBaseUrl");
-            this._logger.error(err)
+            this._logger.error(err);
             throw newErr;
         }
 
@@ -57,7 +57,7 @@ export class ConfigurationHttpClient {
             baseURL: configSvcBaseUrl,
             timeout: 1000,
             //headers: {'X-Custom-Header': 'foobar'} TODO config svc authentication
-        })
+        });
     }
 
     async boostrapGlobalConfigs(configSetDto: WriteGlobalConfigurationSet): Promise<boolean> {
@@ -68,7 +68,7 @@ export class ConfigurationHttpClient {
                 resolve(true);
             }).catch((err: AxiosError) => {
                 if (err.response && err.response.status===409) {
-                    this._logger.info("Got back a duplicate global configuration set found error response")
+                    this._logger.info("Got back a duplicate global configuration set found error response");
                     return resolve(false);
                 }
                 this._logger.error(err);

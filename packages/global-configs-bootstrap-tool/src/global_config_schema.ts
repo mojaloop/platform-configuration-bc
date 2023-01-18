@@ -28,21 +28,32 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
 
 import {WriteGlobalConfigurationSet} from "./local_types";
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+
+// TODO this should be on a separate file
+import currencies from "./list_files/currencies.json";
+
 
 export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
     //////////////////////////////
     // Add Parameters to the schema here
 
     globalConfigSet.parameters.push({
+        name: "currencies",
+        type: ConfigParameterTypes.LIST,
+        defaultValue: currencies,
+        description: "Global Currencies list in format: {code: string, decimals: number}"
+    });
+
+    globalConfigSet.parameters.push({
         name: "boolParam1",
         type: ConfigParameterTypes.BOOL,
         defaultValue: true,
         description: "description bool param 1"
-    })
+    });
 
     //////////////////////////////
     // Add Feature Flags to the schema here

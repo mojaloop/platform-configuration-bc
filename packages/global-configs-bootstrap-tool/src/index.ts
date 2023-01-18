@@ -28,7 +28,10 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
+import {
+    GLOBALCONFIGSET_URL_RESOURCE_NAME
+} from "@mojaloop/platform-configuration-bc-types-lib";
 
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {ConfigurationHttpClient} from "./http_client";
@@ -37,7 +40,7 @@ import {WriteGlobalConfigurationSet} from "./local_types";
 
 const ENV_NAME = process.env["ENV_NAME"] || "dev";
 const CONFIG_SVC_BASEURL = process.env["CONFIG_SVC_BASEURL"] || "http://localhost:3100";
-const GLOBAL_CONFIG_SET_RESOURCENAME = process.env["GLOBAL_CONFIG_SET_RESOURCENAME"] || "globalConfigSets";
+
 const logger: ILogger = new ConsoleLogger();
 
 /**
@@ -75,9 +78,9 @@ logger.info(`global-configs-bootstrap-tool - going to boostrap configSet with:
 \n\t- ${globalConfigSet.parameters.length} parameter(s) \
 \n\t- ${globalConfigSet.featureFlags.length} featureFlags(s) \
 \n\t- ${globalConfigSet.secrets.length} secrets(s) \
-\nTo "${CONFIG_SVC_BASEURL}/${GLOBAL_CONFIG_SET_RESOURCENAME}"...`);
+\nTo "${CONFIG_SVC_BASEURL}/${GLOBALCONFIGSET_URL_RESOURCE_NAME}"...`);
 
-const configClient = new ConfigurationHttpClient(CONFIG_SVC_BASEURL, GLOBAL_CONFIG_SET_RESOURCENAME, logger);
+const configClient = new ConfigurationHttpClient(CONFIG_SVC_BASEURL, GLOBALCONFIGSET_URL_RESOURCE_NAME, logger);
 
 configClient.boostrapGlobalConfigs(globalConfigSet).then((success:boolean)=> {
     if(success){

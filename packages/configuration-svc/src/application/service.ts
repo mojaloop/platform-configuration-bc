@@ -28,8 +28,8 @@
  --------------
  ******/
 
-"use strict"
-import {existsSync} from "fs"
+"use strict";
+import {existsSync} from "fs";
 import {Server} from "http";
 import express from "express";
 import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
@@ -48,6 +48,7 @@ import {
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {AppConfigsRoutes} from "./appconfigs_routes";
 import {GlobalConfigsRoutes} from "./globalconfigs_routes";
+import {GLOBALCONFIGSET_URL_RESOURCE_NAME, APPCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-types-lib";
 
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
@@ -63,12 +64,11 @@ const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
 const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "/app/data/audit_private.pem";
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
-const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
-const APPCONFIGSET_URL_RESOURCE_NAME = "appConfigSets";
+
 
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
-}
+};
 
 
 // only the vars required outside the start fn
@@ -144,12 +144,12 @@ export async function start(
 
     let portNum = SVC_DEFAULT_HTTP_PORT;
     if(process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {
-        portNum = parseInt(process.env["SVC_HTTP_PORT"])
+        portNum = parseInt(process.env["SVC_HTTP_PORT"]);
     }
 
     expressServer = app.listen(portNum, () => {
         console.log(`🚀 Server ready at: http://localhost:${portNum}`);
-        logger!.info("Platform configuration service started");
+        logger.info("Platform configuration service started");
     });
 }
 

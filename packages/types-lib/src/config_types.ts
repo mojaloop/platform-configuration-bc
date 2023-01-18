@@ -30,6 +30,9 @@
 
 "use strict";
 
+export const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
+export const APPCONFIGSET_URL_RESOURCE_NAME = "appConfigSets";
+
 export type ConfigParameterListItem = {
     id: string;
     description: string;

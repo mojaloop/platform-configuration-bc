@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 import {ConfigurationClient, DefaultConfigProvider} from "../../src/";

@@ -28,7 +28,7 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
 
 import process from "process";
 import {IConfigProvider} from "./iconfig_provider";
@@ -161,7 +161,7 @@ export class ConfigurationClient {
             applicationName: this._applicationName,
             applicationVersion: this._applicationVersion,
             ...this._appConfigs.ToJsonObj()
-        }
+        };
         return this._configProvider!.boostrapAppConfigs(appConfigSet, ignoreDuplicateError);
     }
 

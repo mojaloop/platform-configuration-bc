@@ -28,18 +28,19 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
 
-import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {
+    APPCONFIGSET_URL_RESOURCE_NAME,
+    AppConfigurationSet,
+    GlobalConfigurationSet
+} from "@mojaloop/platform-configuration-bc-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
 import process from "process";
 
 
 const PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_CENTRAL_URL";
-
-const APP_CONFIG_SET_RESOURCENAME = "appConfigSets";
-const GLOBAL_CONFIG_SET_RESOURCENAME = "globalConfigSets";
 
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:()=>Promise<void>;
@@ -50,7 +51,7 @@ export class DefaultConfigProvider implements IConfigProvider {
 
         if(!configSvcBaseUrl){
             if(process.env[PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME] === undefined){
-                throw new Error("DefaultConfigProvider cannot continue, a configSvcBaseUrl was not provided in the constructor nor via env var")
+                throw new Error("DefaultConfigProvider cannot continue, a configSvcBaseUrl was not provided in the constructor nor via env var");
             }
             const envVal = process.env[PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME];
 
@@ -58,7 +59,7 @@ export class DefaultConfigProvider implements IConfigProvider {
                 const url = new URL(envVal || "");
                 configSvcBaseUrl = url.toString();
             }catch(err){
-                throw new Error("DefaultConfigProvider cannot continue, invalid configSvcBaseUrl provided via env var")
+                throw new Error("DefaultConfigProvider cannot continue, invalid configSvcBaseUrl provided via env var");
             }
         }
 
@@ -67,14 +68,14 @@ export class DefaultConfigProvider implements IConfigProvider {
             baseURL: configSvcBaseUrl,
             timeout: 1000,
             //headers: {'X-Custom-Header': 'foobar'} TODO config svc authentication
-        })
+        });
     }
 
     async boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
         //const resp: AxiosResponse<any> =
-        await this._client.post(`/${APP_CONFIG_SET_RESOURCENAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
+        await this._client.post(`/${APPCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
             console.log(resp.data);
             return true;
         }).catch((err:AxiosError) => {
@@ -101,7 +102,7 @@ export class DefaultConfigProvider implements IConfigProvider {
 
         let appConfigSetData: AppConfigurationSet;
         try {
-            const resp = await this._client.get(`/${APP_CONFIG_SET_RESOURCENAME}/${envName}/${bcName}/${appName}?version=${schemaVersion}`);
+            const resp = await this._client.get(`/${APPCONFIGSET_URL_RESOURCE_NAME}/${envName}/${bcName}/${appName}?version=${schemaVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
@@ -129,7 +130,7 @@ export class DefaultConfigProvider implements IConfigProvider {
 
         let globalConfigurationSet: GlobalConfigurationSet;
         try {
-            const resp = await this._client.get(`/${GLOBAL_CONFIG_SET_RESOURCENAME}/${envName}?latest`);
+            const resp = await this._client.get(`/${APPCONFIGSET_URL_RESOURCE_NAME}/${envName}?latest`);
             if(resp.status !== 200) {
                 return null;
             }

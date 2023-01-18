@@ -28,7 +28,7 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
 
 import {
     ConfigFeatureFlag,
@@ -122,7 +122,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
             parameters: Array.from(this._parameters.values()),
             featureFlags: Array.from(this._featureFlags.values()),
             secrets: Array.from(this._secrets.values())
-        }
+        };
     }
 
     /**
@@ -165,7 +165,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
             throw new Error(`Duplicate config name detected - name: ${param.name}`);
         }
 
-        this._parameters.set(param.name.toUpperCase(), param)
+        this._parameters.set(param.name.toUpperCase(), param);
     }
 
     addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void {

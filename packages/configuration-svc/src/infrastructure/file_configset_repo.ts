@@ -28,7 +28,7 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
 import semver from "semver";
 import {readFile, stat, writeFile} from "fs/promises";
 import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
@@ -120,7 +120,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
         const loadSuccess = await this._loadFromFile();
         if(!loadSuccess){
-            throw new Error("Error loading FileConfigSetRepo file")
+            throw new Error("Error loading FileConfigSetRepo file");
         }
 
         let fsWait:NodeJS.Timeout | undefined; // debounce wait
@@ -171,7 +171,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         }
 
         versionConfigSets.sort((a: AppConfigurationSet, b: AppConfigurationSet) => b.iterationNumber - a.iterationNumber);
-        const lastIteraction = versionConfigSets[0]
+        const lastIteraction = versionConfigSets[0];
 
         return lastIteraction ?? null;
     }
@@ -203,7 +203,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         }
 
         const latestVersion = allVersions[0].schemaVersion;
-        const lastPatch = this._getAppConfigLatestIteration(allVersions, latestVersion)
+        const lastPatch = this._getAppConfigLatestIteration(allVersions, latestVersion);
 
         if(!lastPatch){
             return null;
@@ -218,7 +218,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             return null;
         }
 
-        const lastPatch = this._getAppConfigLatestIteration(allVersions, version)
+        const lastPatch = this._getAppConfigLatestIteration(allVersions, version);
 
         if(!lastPatch){
             return null;
@@ -233,7 +233,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         const found:boolean = versions.length > 0;
 
         // checks should happen in the caller agg, this should blindly overwrite
-        versions.push(appConfigSet)
+        versions.push(appConfigSet);
 
         if(!found){
             const idStr = this._configSetIdString(appConfigSet.environmentName, appConfigSet.boundedContextName, appConfigSet.applicationName);
@@ -258,7 +258,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     // global config set specific
     async storeGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):Promise<boolean>{
         // checks should happen in the caller agg, this should blindly overwrite
-        this._globalConfigSet.push(globalConfigSet)
+        this._globalConfigSet.push(globalConfigSet);
 
         await this._saveToFile();
 
@@ -287,7 +287,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         const ret = this._globalConfigSet.filter(value => value.environmentName.toUpperCase() === envName.toUpperCase() && value.schemaVersion === version);
 
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
-        const lastIteraction = ret[0]
+        const lastIteraction = ret[0];
 
         return this._deepCopyGlobalConfigSet(lastIteraction) ?? null;
     }
@@ -306,7 +306,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         ret = ret.filter(value => value.schemaVersion === lastVersion);
 
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
-        const lastIteraction = ret[0]
+        const lastIteraction = ret[0];
 
         return this._deepCopyGlobalConfigSet(lastIteraction) ?? null;
     }

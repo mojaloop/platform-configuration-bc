@@ -1,4 +1,4 @@
-"use strict"
+"use strict";
 import semver from "semver";
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 

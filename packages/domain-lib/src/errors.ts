@@ -28,7 +28,7 @@
  --------------
  ******/
 
-'use strict'
+"use strict";
 
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
 

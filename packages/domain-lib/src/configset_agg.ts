@@ -28,7 +28,7 @@
  --------------
  ******/
 
-"use strict"
+"use strict";
 
 import semver from "semver";
 import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "./infrastructure_interfaces";
@@ -62,7 +62,7 @@ enum AuditActions{
 export class ConfigSetAggregate {
     private readonly _logger: ILogger;
     private readonly _appConfigSetRepo:IAppConfigSetRepository;
-    private readonly _globalConfigSetRepo:IGlobalConfigSetRepository
+    private readonly _globalConfigSetRepo:IGlobalConfigSetRepository;
     private readonly _auditClient:IAuditClient;
 
     constructor(appConfigSetRepo:IAppConfigSetRepository, globalConfigSetRepo:IGlobalConfigSetRepository, logger: ILogger, auditClient:IAuditClient) {
