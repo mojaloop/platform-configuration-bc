@@ -34,7 +34,7 @@
     "npm_publish": "npm version patch && npm publish --tag=latest --access public"
   },
   "dependencies": {
-    "@mojaloop/platform-configuration-bc-types-lib": "~0.1.0",
+    "@mojaloop/platform-configuration-bc-types-lib": "~0.1.15",
     "axios": "^0.27.1"
   },
   "devDependencies": {
