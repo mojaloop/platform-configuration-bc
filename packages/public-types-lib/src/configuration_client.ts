@@ -30,4 +30,45 @@
 
 "use strict";
 
-export * from "./config_types";
+import {
+	ConfigFeatureFlag,
+	ConfigParameter,
+	ConfigParameterTypes,
+	ConfigSecret
+} from "./general_config_types";
+
+export interface IConfigurationClient {
+	get environmentName(): string;
+	get boundedContextName(): string;
+	get applicationName(): string;
+	get applicationVersion(): string;
+	get appConfigs(): IAppConfiguration;
+	get globalConfigs(): IGlobalConfiguration;
+
+	init(): Promise<void>;
+	fetch(): Promise<void>;
+	bootstrap(ignoreDuplicateError?: boolean): Promise<boolean>;
+}
+
+export interface IGlobalConfiguration {
+	schemaVersion: string;
+	iterationNumber: number;
+
+	has(name: string): boolean;
+	allKeys(): string[];
+	getParam(paramName: string): ConfigParameter | null;
+	getAllParams(): ConfigParameter[];
+	getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null;
+	getAllFeatureFlags(): ConfigFeatureFlag[];
+	getSecret(secretName: string): ConfigSecret | null;
+	getAllSecrets(): ConfigSecret[];
+}
+
+export interface IAppConfiguration extends IGlobalConfiguration {
+	addParam(param: ConfigParameter): void;
+	addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void;
+	addFeatureFlag(featureFlag: ConfigFeatureFlag): void;
+	addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void;
+	addSecret(secret: ConfigSecret): void;
+	addNewSecret(name: string, defaultValue: string | null, description: string): void;
+}

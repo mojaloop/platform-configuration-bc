@@ -30,41 +30,5 @@
 
 "use strict";
 
-import {
-    ConfigFeatureFlag,
-    ConfigParameter,
-    ConfigParameterTypes,
-    ConfigSecret
-} from "@mojaloop/platform-configuration-bc-types-lib";
-
-
-export interface IGlobalConfiguration{
-    schemaVersion: string;
-    iterationNumber: number;
-
-    has(name: string): boolean;
-    allKeys(): string[];
-
-    getParam(paramName: string): ConfigParameter | null;
-    getAllParams(): ConfigParameter[];
-
-    getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null;
-    getAllFeatureFlags(): ConfigFeatureFlag[];
-
-    getSecret(secretName: string): ConfigSecret | null;
-    getAllSecrets(): ConfigSecret[];
-}
-
-export interface IAppConfiguration extends IGlobalConfiguration{
-    addParam(param: ConfigParameter): void;
-    addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void;
-    //setParamValue(paramName:string, value:any):void
-
-    addFeatureFlag(featureFlag: ConfigFeatureFlag): void;
-    addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void;
-    //setFeatureFlagValue(featureFlagName:string, value:boolean):void;
-
-    addSecret(secret: ConfigSecret): void;
-    addNewSecret(name: string, defaultValue: string | null, description: string): void;
-    //setSecretValue(secretName:string, value:string):void
-}
+export * from "./general_config_types";
+export * from "./configuration_client";
