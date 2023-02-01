@@ -1,6 +1,6 @@
 "use strict";
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ConfigurationClient, DefaultConfigProvider} from "../../src/";
 
 const ENV_NAME = "dev";

@@ -30,7 +30,7 @@
 
 "use strict";
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 export type WriteGlobalConfigurationSet = {
     environmentName: string;

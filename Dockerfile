@@ -15,7 +15,7 @@ RUN apk add --no-cache -t build-dependencies make gcc g++ python3 libtool libres
 COPY package*.json ./
 
 COPY packages/domain-lib/package.json ./packages/domain-lib/
-COPY packages/types-lib/package.json ./packages/types-lib/
+COPY packages/public-types-lib/package.json ./packages/public-types-lib/
 COPY packages/configuration-svc/package.json ./packages/configuration-svc/
 
 #RUN ls -la
@@ -32,7 +32,7 @@ COPY tsconfig.json ./
 
 # copy required supporting packages/packages (only the private ones not published to npm)
 COPY packages/domain-lib ./packages/domain-lib
-COPY packages/types-lib ./packages/types-lib
+COPY packages/public-types-lib ./packages/public-types-lib
 
 # copy service code
 COPY packages/configuration-svc ./packages/configuration-svc

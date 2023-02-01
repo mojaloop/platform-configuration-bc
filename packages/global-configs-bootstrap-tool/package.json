@@ -31,6 +31,6 @@
   },
   "devDependencies": {
     "@mojaloop/logging-bc-public-types-lib": "~0.1.14",
-    "@mojaloop/platform-configuration-bc-types-lib": "*"
+    "@mojaloop/platform-configuration-bc-public-types-lib": "*"
   }
 }

@@ -30,7 +30,7 @@
 
 "use strict";
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 // App config set specific
 export class AppConfigurationSetNotFoundError extends Error {}

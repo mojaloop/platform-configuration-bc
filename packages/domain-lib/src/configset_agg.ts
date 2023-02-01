@@ -35,7 +35,7 @@ import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "./infrastruct
 import {
     ConfigItemTypes, AppConfigurationSet, GlobalConfigurationSet,
     ConfigFeatureFlag, ConfigParameter, ConfigSecret
-} from "@mojaloop/platform-configuration-bc-types-lib";
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
     CannotCreateOverridePreviousVersionConfigSetError,

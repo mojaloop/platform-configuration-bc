@@ -21,7 +21,7 @@ There are two sets of configurations:
 "use strict"
 
 import {ConfigurationClient, IConfigProvider, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 const ENV_NAME = "dev";                                 // Global platform environment name
 const BC_NAME = "my-bounded-context";                   // Bounded context which the App registering the schema belongs to

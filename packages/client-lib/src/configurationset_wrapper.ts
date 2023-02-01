@@ -36,8 +36,8 @@ import {
     ConfigParameterTypes,
     ConfigSecret,
     ConfigurationSet,
-} from "@mojaloop/platform-configuration-bc-types-lib";
-import {IAppConfiguration, IGlobalConfiguration} from "./configuration_interfaces";
+    IAppConfiguration, IGlobalConfiguration
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 
 

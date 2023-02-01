@@ -31,7 +31,7 @@
 "use strict";
 import express from "express";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
-import { ConfigItemTypes,GlobalConfigurationSet } from "@mojaloop/platform-configuration-bc-types-lib";
+import { ConfigItemTypes,GlobalConfigurationSet } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {
     ConfigSetAggregate,
     GlobalConfigSetChangeValuesCmdPayload,

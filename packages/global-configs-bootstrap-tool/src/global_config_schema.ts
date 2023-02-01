@@ -31,7 +31,7 @@
 "use strict";
 
 import {WriteGlobalConfigurationSet} from "./local_types";
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 // TODO this should be on a separate file
 import currencies from "./list_files/currencies.json";

@@ -48,7 +48,7 @@ import {
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {AppConfigsRoutes} from "./appconfigs_routes";
 import {GlobalConfigsRoutes} from "./globalconfigs_routes";
-import {GLOBALCONFIGSET_URL_RESOURCE_NAME, APPCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-types-lib";
+import {GLOBALCONFIGSET_URL_RESOURCE_NAME, APPCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";

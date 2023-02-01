@@ -30,7 +30,7 @@
 
 "use strict";
 
-import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 export interface IConfigProvider {
   init(): Promise<boolean>

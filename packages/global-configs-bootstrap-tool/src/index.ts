@@ -31,7 +31,7 @@
 "use strict";
 import {
     GLOBALCONFIGSET_URL_RESOURCE_NAME
-} from "@mojaloop/platform-configuration-bc-types-lib";
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {ConfigurationHttpClient} from "./http_client";

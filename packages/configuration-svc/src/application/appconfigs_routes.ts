@@ -34,7 +34,7 @@ import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
     AppConfigurationSet,
     ConfigItemTypes
-} from "@mojaloop/platform-configuration-bc-types-lib";
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {
     ConfigSetAggregate,
     AppConfigSetChangeValuesCmdPayload,

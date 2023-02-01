@@ -31,7 +31,6 @@
 "use strict";
 
 
-export * from "./configuration_interfaces";
 export * from "./configuration_client";
 export * from "./iconfig_provider";
 export * from "./default_provider";

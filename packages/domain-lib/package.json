@@ -37,7 +37,7 @@
     "@mojaloop/auditing-bc-client-lib": "^0.0.10",
     "@mojaloop/auditing-bc-public-types-lib": "^0.0.11",
     "@mojaloop/logging-bc-client-lib": "^0.1.17",
-    "@mojaloop/platform-configuration-bc-types-lib": "~0.1.14",
+    "@mojaloop/platform-configuration-bc-public-types-lib": "*",
     "semver": "^7.3.8"
   },
   "devDependencies": {

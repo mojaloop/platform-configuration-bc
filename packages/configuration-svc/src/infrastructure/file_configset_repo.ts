@@ -32,7 +32,7 @@
 import semver from "semver";
 import {readFile, stat, writeFile} from "fs/promises";
 import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
-import {GlobalConfigurationSet, AppConfigurationSet} from "@mojaloop/platform-configuration-bc-types-lib";
+import {GlobalConfigurationSet, AppConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import fs from "fs";
 import {watch} from "node:fs";

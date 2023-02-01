@@ -3,7 +3,7 @@ import semver from "semver";
 import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
 
 // must use relative path imports pointing to the dist dirs of own repo packages
-import {ConfigParameterTypes} from "../../packages/types-lib/dist/";
+import {ConfigParameterTypes} from "../../packages/public-types-lib/dist/";
 import {ConfigurationClient, DefaultConfigProvider} from "../../packages/client-lib/dist/";
 
 const ENV_NAME = "dev";

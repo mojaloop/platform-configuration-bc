@@ -34,7 +34,7 @@ import {
     APPCONFIGSET_URL_RESOURCE_NAME,
     AppConfigurationSet,
     GlobalConfigurationSet
-} from "@mojaloop/platform-configuration-bc-types-lib";
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
 import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
 import process from "process";

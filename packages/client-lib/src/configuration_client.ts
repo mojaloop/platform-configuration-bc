@@ -33,15 +33,17 @@
 import process from "process";
 import {IConfigProvider} from "./iconfig_provider";
 import {ConfigurationSetWrapper} from "./configurationset_wrapper";
-import {IAppConfiguration, IGlobalConfiguration} from "./configuration_interfaces";
-import {AppConfigurationSet, GlobalConfigurationSet } from "@mojaloop/platform-configuration-bc-types-lib";
+
+import {AppConfigurationSet, GlobalConfigurationSet,
+    IAppConfiguration, IConfigurationClient, IGlobalConfiguration
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 // name of the env var that if present disables remote fetch (uses only env vars or defaults)
 const STANDALONE_ENV_VAR_NAME = "PLATFORM_CONFIG_STANDALONE";
 const ENV_VAR_APP_OVERRIDE_PREFIX = "ML_APP_";
 const ENV_VAR_GLOBAL_OVERRIDE_PREFIX = "ML_GLOBAL_";
 
-export class ConfigurationClient {
+export class ConfigurationClient implements IConfigurationClient{
     private readonly _configProvider:IConfigProvider | null;
     private readonly _environmentName: string;
     private readonly _boundedContextName: string;

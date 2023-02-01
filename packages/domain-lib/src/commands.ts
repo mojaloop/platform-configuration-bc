@@ -30,7 +30,7 @@
 
 "use strict";
 
-import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-types-lib";
+import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 export type AppConfigSetChangeValuesCmdPayload = {
     environmentName: string,
