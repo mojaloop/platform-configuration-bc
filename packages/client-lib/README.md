@@ -34,7 +34,7 @@ const CONFIG_SVC_BASEURL = "http://localhost:3000";     // Base URL of the confi
 const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
 
 // NOTE: you can skip passing the CONFIG_SVC_BASEURL to the DefaultConfigProvider constructor
-// if the PLATFORM_CONFIG_CENTRAL_URL env var contains the platform config service base url
+// if the PLATFORM_CONFIG_BASE_SVC_URL env var contains the platform config service base url
 // const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider();
 
 // create the configClient instance, passing the defaultConfigProvider
@@ -174,7 +174,7 @@ For development only purposes, the client can be instanciated without an `IConfi
 
 ### DefaultProvider configuration via env var
 
-The default implementation of the `ConfigProvider` this library provides, called `DefaultConfigProvider` can be configured via an environment variable, to that end, set the `PLATFORM_CONFIG_CENTRAL_URL_ENV_VAR_NAME` env var with the value of the central platform configuration service base url and construct the `DefaultConfigProvider` instance without passing a `configSvcBaseUrl`.    
+The default implementation of the `ConfigProvider` this library provides, called `DefaultConfigProvider` can be configured via an environment variable, to that end, set the `PLATFORM_CONFIG_BASE_SVC_URL` env var with the value of the central platform configuration service base url and construct the `DefaultConfigProvider` instance without passing a `configSvcBaseUrl`.    
 
 
 ### Overriding with Environment Variables
