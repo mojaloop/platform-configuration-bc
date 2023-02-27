@@ -34,9 +34,9 @@
     "dep:update": "ncu -e 2 -u"
   },
   "dependencies": {
-    "@mojaloop/auditing-bc-client-lib": "^0.0.10",
-    "@mojaloop/auditing-bc-public-types-lib": "^0.0.11",
-    "@mojaloop/logging-bc-client-lib": "^0.1.17",
+    "@mojaloop/auditing-bc-client-lib": "^0.0.11",
+    "@mojaloop/auditing-bc-public-types-lib": "^0.0.12",
+    "@mojaloop/logging-bc-client-lib": "^0.1.18",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*",
     "semver": "^7.3.8"
   },

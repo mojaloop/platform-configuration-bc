@@ -34,6 +34,7 @@ import {Server} from "http";
 import express from "express";
 import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
 import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
+import process from "process";
 import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
 import {
     ConfigSetAggregate,
@@ -61,7 +62,7 @@ const SVC_DEFAULT_HTTP_PORT = 3100;
 const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
 const KAFKA_AUDITS_TOPIC = process.env["KAFKA_AUDITS_TOPIC"] || "audits";
 const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
-const AUDIT_CERT_FILE_PATH = process.env["AUDIT_CERT_FILE_PATH"] || "/app/data/audit_private.pem";
+const AUDIT_KEY_FILE_PATH = process.env["AUDIT_KEY_FILE_PATH"] || "/app/data/audit_private_key.pem";
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
 
@@ -116,14 +117,14 @@ export async function start(
     }
 
     if(!auditClient) {
-        if (!existsSync(AUDIT_CERT_FILE_PATH)) {
+        if (!existsSync(AUDIT_KEY_FILE_PATH)) {
             if (PRODUCTION_MODE) process.exit(9);
 
             // create e tmp file
-            LocalAuditClientCryptoProvider.createRsaPrivateKeyFileSync(AUDIT_CERT_FILE_PATH, 2048);
+            LocalAuditClientCryptoProvider.createRsaPrivateKeyFileSync(AUDIT_KEY_FILE_PATH, 2048);
         }
 
-        const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_CERT_FILE_PATH);
+        const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_KEY_FILE_PATH);
         const auditDispatcher = new KafkaAuditClientDispatcher(kafkaProducerOptions, KAFKA_AUDITS_TOPIC, logger);
         // NOTE: to pass the same kafka logger to the audit client, make sure the logger is started/initialised already
         auditClient = new AuditClient(BC_NAME, APP_NAME, APP_VERSION, cryptoProvider, auditDispatcher);

@@ -4,12 +4,12 @@ FROM node:18.13-alpine as builder
 # Create app directory
 WORKDIR /app
 
-# build requirements
-RUN apk --no-cache add git
-RUN apk add --no-cache -t build-dependencies make gcc g++ python3 libtool libressl-dev openssl-dev autoconf automake \
-    && cd $(npm root -g)/npm \
-    && npm config set unsafe-perm true \
-    && npm install -g node-gyp
+RUN apk add --no-cache -t build-dependencies git make gcc g++ python3 \
+    libtool autoconf pkgconfig automake librdkafka-dev bash # wget tar xz
+
+RUN cd $(npm root -g)/npm
+RUN npm config set unsafe-perm true
+RUN npm install -g node-gyp
 
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 COPY package*.json ./
@@ -22,7 +22,11 @@ COPY packages/configuration-svc/package.json ./packages/configuration-svc/
 
 # If you are building your code for production
 #RUN npm ci --only=production
-RUN npm install
+RUN BUILD_LIBRDKAFKA=0 npm install
+
+# Note on BUILD_LIBRDKAFKA:
+#   Use BUILD_LIBRDKAFKA=0 only if we have installed librdkafka-dev in
+#   the builder image and librdkafka in the final image
 
 ########################################
 # Copy code and build
@@ -47,8 +51,10 @@ COPY packages/configuration-svc ./packages/configuration-svc
 RUN npm run build
 
 ########################################
-FROM node:16.13-alpine
+FROM node:18.13-alpine
 WORKDIR /app
+
+RUN apk add librdkafka
 
 COPY --from=builder /app .
 

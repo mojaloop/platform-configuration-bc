@@ -50,6 +50,8 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     private readonly _filePath: string;
     private _globalConfigSet : GlobalConfigurationSet[] = [];
     private _appConfigSets : Map<string, AppConfigurationSet[]> = new Map<string, AppConfigurationSet[]>();
+    private _watching = false;
+    private _saving = false;
 
     constructor(filePath:string, logger: ILogger) {
         this._logger = logger.createChild(this.constructor.name);
@@ -91,6 +93,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
     private async _saveToFile():Promise<void>{
         try{
+            this._saving = true;
             const flatRecs: DataFileStruct = {
                 globalConfigSets: [],
                 appConfigSets: []
@@ -104,9 +107,30 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
             const strContents = JSON.stringify(flatRecs, null, 4);
             await writeFile(this._filePath, strContents, "utf8");
+            this._ensureIsWatching();
         }catch (e) {
             throw new Error("cannot rewrite FileConfigSetRepo storage file");
+        } finally {
+            this._saving = false;
         }
+    }
+
+    private _ensureIsWatching() {
+        if (this._watching) return;
+
+        let fsWait: NodeJS.Timeout | undefined; // debounce wait
+        watch(this._filePath, async (eventType, filename) => {
+            if (this._saving) return;
+            if (eventType==="change") {
+                if (fsWait) return;
+                fsWait = setTimeout(() => {
+                    fsWait = undefined;
+                }, 100);
+                this._logger.info(`FileIAMAdapter file changed,  with file path: "${this._filePath}" - reloading...`);
+                await this._loadFromFile();
+            }
+        });
+        this._watching = true;
     }
 
     async init(): Promise<void>{
@@ -123,17 +147,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             throw new Error("Error loading FileConfigSetRepo file");
         }
 
-        let fsWait:NodeJS.Timeout | undefined; // debounce wait
-        watch(this._filePath, async (eventType, filename) => {
-            if (eventType === "change") {
-                if (fsWait) return;
-                fsWait = setTimeout(() => {
-                    fsWait = undefined;
-                }, 100);
-                this._logger.info(`FileConfigSetRepo file changed, with file path: "${this._filePath}" - reloading...`);
-                await this._loadFromFile();
-            }
-        });
+        this._ensureIsWatching();
     }
 
     /**************************************

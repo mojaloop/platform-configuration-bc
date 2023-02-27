@@ -30,7 +30,7 @@
     "dep:update": "ncu -e 2 -u"
   },
   "devDependencies": {
-    "@mojaloop/logging-bc-public-types-lib": "~0.1.14",
+    "@mojaloop/logging-bc-public-types-lib": "~0.1.15",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*"
   }
 }
