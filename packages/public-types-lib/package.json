@@ -1,6 +1,6 @@
 {
   "name": "@mojaloop/platform-configuration-bc-public-types-lib",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Mojaloop Platform Configuration BC public types lib",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/packages/public-types-lib",
