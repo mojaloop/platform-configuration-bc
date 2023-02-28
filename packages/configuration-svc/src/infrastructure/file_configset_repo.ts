@@ -56,6 +56,8 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     constructor(filePath:string, logger: ILogger) {
         this._logger = logger.createChild(this.constructor.name);
         this._filePath = filePath;
+
+        this._logger.info(`Starting FileConfigSetRepo with file path: "${this._filePath}"`);
     }
 
     private async _loadFromFile():Promise<boolean>{
