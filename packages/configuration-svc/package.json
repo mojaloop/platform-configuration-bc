@@ -5,6 +5,9 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/modules/configuration-svc",
   "private": true,
+  "mojaloop": {
+    "publish_to_dockerhub": true
+  },
   "bugs": {
     "url": "https://github.com/mojaloop/platform-configuration-bc/issues#readme"
   },
@@ -22,15 +25,14 @@
     "service": "node dist/application/index.js",
     "build": "npm exec tsc",
     "watch": "npm exec tsc -w",
-    "clean": "rm -Rf dist",
-    "clean:npm": "rm -Rf node_modules",
+    "clean": "npm run clean:npm; npm run clean:dist",
+    "clean:dist": "rm -rf dist",
+    "clean:npm": "rm -rf node_modules",
     "pretest": "npm run build",
     "standard": "npm run lint",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
     "test:unit": "jest --passWithNoTests --testMatch '**/test/unit/**/*.test.ts'",
-    "test:coverage": "jest --passWithNoTests --coverage --coverageThreshold='{}' --testMatch '**/test/unit/**/*.test.ts'",
-    "test:coverage-check": "jest --coverage --testMatch '**/test/unit/**/*.test.ts'",
     "audit:resolve": "SHELL=sh resolve-audit",
     "audit:check": "SHELL=sh check-audit",
     "dep:check": "ncu -e 2",
