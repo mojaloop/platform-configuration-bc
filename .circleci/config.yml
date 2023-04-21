@@ -49,13 +49,6 @@ jobs:
           root: *workingDirVar
           paths:
             - .
-  lint:
-    executor: default-docker
-    steps:
-      - attach_workspace:
-          at: *workingDirVar
-      - run: npm run lint
-
   build:
     executor: default-docker
     steps:
@@ -70,6 +63,12 @@ jobs:
           root: *workingDirVar
           paths:
             - .
+  lint:
+    executor: default-docker
+    steps:
+      - attach_workspace:
+          at: *workingDirVar
+      - run: npm run lint
 
   test-unit:
     executor: default-docker
@@ -124,18 +123,17 @@ workflows:
     jobs:
       - setup:
           context: org-global
-      - lint:
-          context: org-global
-          requires:
-            - setup
       - build:
           context: org-global
           requires:
             - setup
-      - test-unit:
+      - lint:
           context: org-global
           requires:
             - build
+      - test-unit:
+          context: org-global
+          requires:
             - lint
       - coverage-report:
           context: org-global
