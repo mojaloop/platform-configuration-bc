@@ -1,4 +1,4 @@
-/*****
+/**
  License
  --------------
  Copyright © 2017 Bill & Melinda Gates Foundation
@@ -12,7 +12,7 @@
  --------------
  This is the official list (alphabetical ordering) of the Mojaloop project contributors for this file.
  Names of the original copyright holders (individuals or organizations)
- should be listed with a '*' in the first column. People who have
+ should be listed with a '' in the first column. People who have
  contributed from an organization can be listed under the organization
  that actually holds the copyright for their contributions (see the
  Gates Foundation organization for an example). Those individuals should have
@@ -26,16 +26,34 @@
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
 
  --------------
- ******/
+**/
 
 "use strict";
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
+import {AuditEntryLabel, AuditSecurityContext, IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 
-export type WriteGlobalConfigurationSet = {
-    environmentName: string;
-    schemaVersion: string;
-    parameters: { name: string; type: ConfigParameterTypes; defaultValue: any; description: string; jsonSchema?: string}[];
-    featureFlags: { name: string; defaultValue: boolean; description: string; }[];
-    secrets: { name: string; defaultValue: string | null; description: string }[];
+export class MockAuditClient implements IAuditClient {
+	private readonly logger: ILogger;
+
+	constructor(
+		logger: ILogger,
+	) {
+		this.logger = logger;
+	}
+
+	init(): Promise<void> {
+        return Promise.resolve();
+    }
+
+    destroy(): Promise<void> {
+        return Promise.resolve();
+    }
+
+	audit(actionType: string, actionSuccessful: boolean, securityContext?: AuditSecurityContext | undefined, labels?: AuditEntryLabel[] | undefined): Promise<void> {
+        return Promise.resolve();
+	}
+
+
+
 }

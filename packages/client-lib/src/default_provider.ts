@@ -36,18 +36,26 @@ import {
     GlobalConfigurationSet
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
-import axios, { AxiosResponse, AxiosInstance, AxiosError } from "axios";
+import axios, {AxiosError, AxiosInstance, AxiosResponse} from "axios";
 import process from "process";
-
+import {
+    DomainEventMsg,
+    IMessage,
+    IMessageConsumer,
+    MessageTypes
+} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {PlatformConfigurationBCTopics} from "@mojaloop/platform-shared-lib-public-messages-lib";
 
 const PLATFORM_CONFIG_BASE_SVC_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_BASE_SVC_URL";
 
 export class DefaultConfigProvider implements IConfigProvider {
-    private _changerHandler:()=>Promise<void>;
+    private _changerHandler:(eventMsg:DomainEventMsg)=>Promise<void>;
     private _client:AxiosInstance;
+    private _messageConsumer:IMessageConsumer|null;
     private _initialised = false;
 
-    constructor(configSvcBaseUrl:string|null = null) {
+    constructor(configSvcBaseUrl:string|null = null, messageConsumer:IMessageConsumer|null = null) {
+        this._messageConsumer = messageConsumer;
 
         if(!configSvcBaseUrl){
             if(process.env[PLATFORM_CONFIG_BASE_SVC_URL_ENV_VAR_NAME] === undefined){
@@ -69,6 +77,13 @@ export class DefaultConfigProvider implements IConfigProvider {
             timeout: 1000,
             //headers: {'X-Custom-Header': 'foobar'} TODO config svc authentication
         });
+
+    }
+
+    private async _changeEventHandler(message:IMessage):Promise<void>{
+        if(message.msgType !== MessageTypes.DOMAIN_EVENT) return;
+
+        await this._changerHandler(message as DomainEventMsg);
     }
 
     async boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
@@ -89,8 +104,21 @@ export class DefaultConfigProvider implements IConfigProvider {
     }
 
     async init(): Promise<boolean>{
+        if(this._messageConsumer){
+            this._messageConsumer.setTopics([PlatformConfigurationBCTopics.DomainEvents]);
+            this._messageConsumer.setCallbackFn(this._changeEventHandler.bind(this));
+            await this._messageConsumer.connect();
+            await this._messageConsumer.startAndWaitForRebalance();
+        }
+
         this._initialised = true;
         return true;
+    }
+
+    async destroy(): Promise<void>{
+        if(this._messageConsumer){
+            await this._messageConsumer.destroy(true);
+        }
     }
 
     private _checkInitialised(){
@@ -155,7 +183,7 @@ export class DefaultConfigProvider implements IConfigProvider {
     }
 
     // this will be called by the IConfigProvider implementation when changes are detected
-    setConfigChangeHandler(fn:()=>Promise<void>):void{
+    setConfigChangeHandler(fn:(eventMsg:DomainEventMsg)=>Promise<void>):void{
         this._changerHandler = fn;
     }
 }

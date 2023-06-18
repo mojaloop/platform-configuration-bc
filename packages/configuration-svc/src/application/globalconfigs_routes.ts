@@ -63,7 +63,7 @@ export class GlobalConfigsRoutes {
     // handlers - global config sets
     private async _globalConfigSet_postBootstrap(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
         const data: GlobalConfigurationSet = req.body;
-        this._logger.debug(data);
+        //this._logger.debug(data);
 
         await this._agg.processCreateGlobalConfigSetCmd(data).then((success) => {
             res.status(200).json({status: "ok"});
@@ -81,12 +81,12 @@ export class GlobalConfigsRoutes {
             } else if (error instanceof InvalidGlobalConfigurationSetError) {
                 res.status(400).json({
                     status: "error",
-                    msg: "invalid global configuration set"
+                    msg: "invalid global configuration set" + (error.message ? " - " + error.message : "")
                 });
             } else {
                 res.status(500).json({
                     status: "error",
-                    msg: "unknown error"
+                    msg: "unknown error" + (error.message ? " - " + error.message : "")
                 });
             }
         });

@@ -23,11 +23,11 @@
     "start": "tsc && npm run service",
     "start:dev": "tsc && AUDIT_KEY_FILE_PATH=./dist/tmp_key_file CONFIG_REPO_STORAGE_FILE_PATH=dist/configSetRepoTempStorageFile.json npm run service",
     "service": "node dist/application/index.js",
-    "build": "npm exec tsc",
-    "watch": "npm exec tsc -w",
+    "build": "tsc",
+    "watch": "tsc -w",
     "clean": "npm run clean:npm; npm run clean:dist",
-    "clean:dist": "rm -rf dist",
-    "clean:npm": "rm -rf node_modules",
+    "clean:dist": "rm -Rf dist",
+    "clean:npm": "rm -Rf node_modules",
     "pretest": "npm run build",
     "standard": "npm run lint",
     "lint": "eslint ./src",
@@ -39,16 +39,19 @@
     "dep:update": "ncu -e 2 -u"
   },
   "dependencies": {
+    "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.100",
+    "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.122",
     "@mojaloop/platform-configuration-bc-domain-lib": "*",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*",
-    "@mojaloop/auditing-bc-client-lib": "~0.0.11",
-    "@mojaloop/auditing-bc-public-types-lib": "~0.0.12",
-    "@mojaloop/logging-bc-client-lib": "~0.1.18",
+    "@mojaloop/auditing-bc-client-lib": "~0.0.14",
+    "@mojaloop/auditing-bc-public-types-lib": "~0.0.15",
+    "@mojaloop/logging-bc-client-lib": "~0.1.24",
     "express": "^4.18.2",
-    "semver": "^7.3.8"
+    "semver": "^7.5.2",
+    "ajv": "~8.12.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",
-    "@types/semver": "^7.3.13"
+    "@types/semver": "^7.5.0"
   }
 }

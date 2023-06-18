@@ -116,8 +116,12 @@ devspace*
 # General Ignore
 *IGNORE*
 
-# --------------- #
-# IntelliJ #
-# --------------- #
-.idea
-**/*.iml
+
+# yarn not using Zero-Installs:
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

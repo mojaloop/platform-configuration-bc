@@ -47,6 +47,7 @@ export enum ConfigParameterTypes {
     "INT_NUMBER" = "INT_NUMBER",
     "FLOAT_NUMBER" = "FLOAT_NUMBER",
     "LIST" = "LIST",
+    "OBJECT" = "OBJECT",
 }
 
 export enum ConfigItemTypes {
@@ -61,6 +62,8 @@ export type ConfigParameter = {
     defaultValue: any;
     description: string;
     currentValue: any;
+    // ajv schema string in JSON Type Definition format - for types list and object
+    jsonSchema?: string;
 }
 
 export type ConfigFeatureFlag = {

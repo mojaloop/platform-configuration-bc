@@ -31,9 +31,11 @@
 "use strict";
 
 import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {DomainEventMsg, IMessage} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 
 export interface IConfigProvider {
-  init(): Promise<boolean>
+  init(): Promise<boolean>;
+  destroy(): Promise<void>;
   boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
 
   fetchAppConfigs(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>;
@@ -41,5 +43,5 @@ export interface IConfigProvider {
   fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>
 
   // this will be called by the IConfigProvider implementation when changes are detected
-  setConfigChangeHandler(fn:()=>Promise<void>):void;
+  setConfigChangeHandler(fn:(eventMsg:DomainEventMsg)=>Promise<void>):void;
 }
