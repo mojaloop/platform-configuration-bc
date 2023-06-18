@@ -34,9 +34,18 @@ import process from "process";
 import {IConfigProvider} from "./iconfig_provider";
 import {ConfigurationSetWrapper} from "./configurationset_wrapper";
 
-import {AppConfigurationSet, GlobalConfigurationSet,
-    IAppConfiguration, IConfigurationClient, IGlobalConfiguration
+import {
+    AppConfigurationSet,
+    GlobalConfigurationSet,
+    IAppConfiguration,
+    IConfigurationClient,
+    IGlobalConfiguration
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {DomainEventMsg} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {
+    PlatformConfigAppConfigsChangedEvt,
+    PlatformConfigGlobalConfigsChangedEvt
+} from "@mojaloop/platform-shared-lib-public-messages-lib";
 
 // name of the env var that if present disables remote fetch (uses only env vars or defaults)
 const STANDALONE_ENV_VAR_NAME = "PLATFORM_CONFIG_STANDALONE";
@@ -52,6 +61,7 @@ export class ConfigurationClient implements IConfigurationClient{
     private readonly _standAloneMode: boolean = false;
     private readonly _appConfigs:ConfigurationSetWrapper;
     private readonly _globalConfigs:ConfigurationSetWrapper;
+    private _changeHandlerFn: (type:"APP"|"GLOBAL")=>void;
 
     constructor(environmentName: string, boundedContext: string, application: string, appVersion: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
         this._configProvider = configProvider;
@@ -67,6 +77,10 @@ export class ConfigurationClient implements IConfigurationClient{
 
         this._appConfigs = new ConfigurationSetWrapper(environmentName, appConfigSchemaVersion);
         this._globalConfigs = new ConfigurationSetWrapper(environmentName);
+
+        if(!this._standAloneMode && this._configProvider){
+            this._configProvider.setConfigChangeHandler(this._changeMessageEvtHandler.bind(this));
+        }
     }
 
     get environmentName(): string {
@@ -93,13 +107,33 @@ export class ConfigurationClient implements IConfigurationClient{
         return this._globalConfigs;
     }
 
+    private async _changeMessageEvtHandler(eventMsg:DomainEventMsg):Promise<void>{
+        // return immediately and use a random wait to avoid having all clients hitting the svc at same time
+        const waitMs = Math.floor(Math.random() * (2000 - 250) + 250);
+        setTimeout(async ()=>{
+            if(eventMsg.msgName === PlatformConfigGlobalConfigsChangedEvt.name){
+                await this._fetchGlobal();
+                if(this._changeHandlerFn) this._changeHandlerFn("GLOBAL");
+            }else if(eventMsg.msgName === PlatformConfigAppConfigsChangedEvt.name){
+                await this._fetchApp();
+                if(this._changeHandlerFn) this._changeHandlerFn("APP");
+            }
+        }, waitMs);
+    }
+
     async init(): Promise<void>{
-        if(!this._standAloneMode){
-            await this._configProvider!.init();
+        if(!this._standAloneMode && this._configProvider){
+            await this._configProvider.init();
         }
 
         this._appConfigs.ApplyFromEnvVars(ENV_VAR_APP_OVERRIDE_PREFIX);
         this._globalConfigs.ApplyFromEnvVars(ENV_VAR_GLOBAL_OVERRIDE_PREFIX);
+    }
+
+    async destroy(): Promise<void>{
+        if(this._configProvider){
+            await this._configProvider.destroy();
+        }
     }
 
     async fetch(): Promise<void>{
@@ -167,4 +201,7 @@ export class ConfigurationClient implements IConfigurationClient{
         return this._configProvider!.boostrapAppConfigs(appConfigSet, ignoreDuplicateError);
     }
 
+    setChangeHandlerFunction(fn: (type:"APP"|"GLOBAL")=>void): void{
+        this._changeHandlerFn = fn;
+    }
 }

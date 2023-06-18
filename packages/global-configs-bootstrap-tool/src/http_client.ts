@@ -29,7 +29,7 @@
  ******/
 
 "use strict";
-import axios, {AxiosError, AxiosInstance, AxiosResponse} from "axios/index";
+import axios, {AxiosError, AxiosInstance, AxiosResponse} from "axios";
 
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {WriteGlobalConfigurationSet} from "./local_types";

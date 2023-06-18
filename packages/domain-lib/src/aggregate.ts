@@ -29,28 +29,40 @@
  ******/
 
 "use strict";
-
+import Ajv from "ajv/dist/jtd";
 import semver from "semver";
 import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "./infrastructure_interfaces";
 import {
-    ConfigItemTypes, AppConfigurationSet, GlobalConfigurationSet,
-    ConfigFeatureFlag, ConfigParameter, ConfigSecret
+    AppConfigurationSet,
+    ConfigFeatureFlag,
+    ConfigItemTypes,
+    ConfigParameter,
+    ConfigParameterTypes,
+    ConfigSecret,
+    GlobalConfigurationSet
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
-    CannotCreateOverridePreviousVersionConfigSetError,
-    CannotCreateDuplicateConfigSetError,
     AppConfigurationSetNotFoundError,
+    CannotCreateDuplicateConfigSetError,
+    CannotCreateOverridePreviousVersionConfigSetError,
     CouldNotStoreConfigSetError,
-    ParameterNotFoundError,
-    InvalidAppConfigurationSetError,
-    OnlyLatestSchemaVersionCanBeChangedError,
     GlobalConfigurationSetNotFoundError,
+    InvalidAppConfigurationSetError,
     InvalidGlobalConfigurationSetError,
-    OnlyLatestIterationCanBeChangedError
+    OnlyLatestIterationCanBeChangedError,
+    OnlyLatestSchemaVersionCanBeChangedError,
+    ParameterNotFoundError
 } from "./errors";
 import {AppConfigSetChangeValuesCmdPayload, GlobalConfigSetChangeValuesCmdPayload} from "./commands";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
+import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {
+    PlatformConfigGlobalConfigsChangedEvtPayload,
+    PlatformConfigGlobalConfigsChangedEvt,
+    PlatformConfigAppConfigsChangedEvtPayload,
+    PlatformConfigAppConfigsChangedEvt
+} from "@mojaloop/platform-shared-lib-public-messages-lib";
 
 enum AuditActions{
     GlobalConfigSet_SchemaVersionCreated = "GlobalConfigSet_SchemaVersionCreated",
@@ -64,28 +76,54 @@ export class ConfigSetAggregate {
     private readonly _appConfigSetRepo:IAppConfigSetRepository;
     private readonly _globalConfigSetRepo:IGlobalConfigSetRepository;
     private readonly _auditClient:IAuditClient;
+    private readonly _messageProducer:IMessageProducer;
+    private readonly _ajv: Ajv;
 
-    constructor(appConfigSetRepo:IAppConfigSetRepository, globalConfigSetRepo:IGlobalConfigSetRepository, logger: ILogger, auditClient:IAuditClient) {
+    constructor(
+        appConfigSetRepo:IAppConfigSetRepository,
+        globalConfigSetRepo:IGlobalConfigSetRepository,
+        auditClient:IAuditClient,
+        messageProducer:IMessageProducer,
+        logger: ILogger
+    ) {
         this._appConfigSetRepo = appConfigSetRepo;
         this._globalConfigSetRepo = globalConfigSetRepo;
         this._logger = logger;
         this._auditClient = auditClient;
+        this._messageProducer = messageProducer;
+
+        this._ajv = new Ajv();
     }
 
     private async _notifyNewSchema_globalConfigs(globalConfigSet:GlobalConfigurationSet){
-        // TODO notify
+        return this._notifyNewValues_globalConfigs(globalConfigSet);
     }
 
     private async _notifyNewSchema_appConfigs(appConfigSet:AppConfigurationSet){
-        // TODO notify
+        return this._notifyNewValues_appConfigs(appConfigSet);
     }
 
     private async _notifyNewValues_globalConfigs(globalConfigSet:GlobalConfigurationSet){
-        // TODO notify
+        const payload:PlatformConfigGlobalConfigsChangedEvtPayload = {
+            environmentName: globalConfigSet.environmentName,
+            schemaVersion: globalConfigSet.schemaVersion,
+            iterationNumber: globalConfigSet.iterationNumber
+        };
+        const evt = new PlatformConfigGlobalConfigsChangedEvt(payload);
+        await this._messageProducer.send(evt);
     }
 
     private async _notifyNewValues_appConfigs(appConfigSet:AppConfigurationSet){
-        // TODO notify
+        const payload:PlatformConfigAppConfigsChangedEvtPayload = {
+            environmentName: appConfigSet.environmentName,
+            schemaVersion: appConfigSet.schemaVersion,
+            iterationNumber: appConfigSet.iterationNumber,
+            boundedContextName: appConfigSet.boundedContextName,
+            applicationName: appConfigSet.applicationName,
+            applicationVersion: appConfigSet.applicationVersion
+        };
+        const evt = new PlatformConfigAppConfigsChangedEvt(payload);
+        await this._messageProducer.send(evt);
     }
 
     private _applyCurrentOrDefaultParamValues(targetParams:ConfigParameter[], sourceParams:ConfigParameter[] | null) {
@@ -133,6 +171,36 @@ export class ConfigSetAggregate {
                 if(targetSecret.defaultValue) targetSecret.currentValue = targetSecret.defaultValue;
             }
         });
+    }
+
+    private _validateJsonTypeDefinition(param:ConfigParameter, data:any): string | null{
+        if(!(param.type===ConfigParameterTypes.LIST || param.type ===ConfigParameterTypes.OBJECT)) return null;
+
+        if(!param.jsonSchema) return "Invalid jsonSchema for parameter of type List or Object";
+        let jtd:any = {};
+        try{
+            jtd = JSON.parse(param.jsonSchema);
+        }catch(err){
+            this._logger.error(err);
+            return "Invalid jsonSchema for parameter of type List or Object";
+        }
+
+        // validate the data passed
+        if(param.type ===ConfigParameterTypes.OBJECT){
+            const valid = this._ajv.validate(jtd, data);
+            if(valid) return null;
+
+            return this._ajv.errorsText();
+        }
+
+        // check list
+        for(const item of data){
+            const valid = this._ajv.validate(jtd, item);
+            if(!valid)
+                return this._ajv.errorsText();
+        }
+
+        return null;
     }
 
     /**************************************
@@ -352,6 +420,14 @@ export class ConfigSetAggregate {
                 throw new CannotCreateOverridePreviousVersionConfigSetError();
             }
         }
+
+        // validate default value for parameters of type list and object against type definition
+        globalConfigSet.parameters.forEach(param => {
+            const errorMessage = this._validateJsonTypeDefinition(param, param.defaultValue);
+            if(errorMessage){
+                throw new InvalidGlobalConfigurationSetError("Invalid default value " + errorMessage);
+            }
+        });
 
         //apply default values - if creating a new version, the current values should be copied from the old version
         this._applyCurrentOrDefaultParamValues(globalConfigSet.parameters, latestVersion ? latestVersion.parameters : null);

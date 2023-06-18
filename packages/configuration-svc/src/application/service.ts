@@ -30,8 +30,8 @@
 
 "use strict";
 import {existsSync} from "fs";
-import {Server} from "http";
-import express from "express";
+import express, {Express} from "express";
+import {Server} from "net";
 import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
 import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
 import process from "process";
@@ -50,7 +50,8 @@ import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {AppConfigsRoutes} from "./appconfigs_routes";
 import {GlobalConfigsRoutes} from "./globalconfigs_routes";
 import {GLOBALCONFIGSET_URL_RESOURCE_NAME, APPCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-public-types-lib";
-
+import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {MLKafkaJsonProducer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
 const APP_VERSION = process.env.npm_package_version || "0.0.1";
@@ -66,110 +67,165 @@ const AUDIT_KEY_FILE_PATH = process.env["AUDIT_KEY_FILE_PATH"] || "/app/data/aud
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
 
-
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
 };
 
-
-// only the vars required outside the start fn
-let logger:ILogger;
-let expressServer: Server;
-
-function setupExpress(configSetAgg:ConfigSetAggregate, loggerParam:ILogger): express.Express {
-    const app = express();
-    app.use(express.json()); // for parsing application/json
-    app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
-
-    const globalConfigsRoutes = new GlobalConfigsRoutes(configSetAgg, loggerParam);
-    const appConfigsRoutes = new AppConfigsRoutes(configSetAgg, loggerParam);
-
-    app.use(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}`, globalConfigsRoutes.Router);
-    app.use(`/${APPCONFIGSET_URL_RESOURCE_NAME}`, appConfigsRoutes.Router);
-
-    app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
-        // catch all
-        res.sendStatus(404);
-    });
-
-    return app;
-}
+let globalLogger: ILogger;
 
 
-export async function start(
-        loggerParam?:ILogger,
+export class Service {
+    static logger: ILogger;
+    static app: Express;
+    static auditClient: IAuditClient;
+    static appConfigRepo:IAppConfigSetRepository;
+    static globalConfigRepo:IGlobalConfigSetRepository;
+    static messageProducer: IMessageProducer;
+    static aggregate:ConfigSetAggregate;
+    static expressServer: Server;
+
+    static async start(
+        logger?: ILogger,
         auditClient?:IAuditClient,
         appConfigRepo?:IAppConfigSetRepository,
-        globalConfigRepo?:IGlobalConfigSetRepository):Promise<void> {
+        globalConfigRepo?:IGlobalConfigSetRepository,
+        messageProducer?: IMessageProducer
+    ):Promise<void>{
+        console.log(`${APP_NAME} - service starting with PID: ${process.pid}`);
 
-    if(!loggerParam) {
-        logger = new KafkaLogger(
-            BC_NAME,
-            APP_NAME,
-            APP_VERSION,
-            kafkaProducerOptions,
-            KAFKA_LOGS_TOPIC,
-            LOG_LEVEL
-        );
-        await (logger as KafkaLogger).start();
-    }else{
-        logger = loggerParam;
-    }
-
-    if(!auditClient) {
-        if (!existsSync(AUDIT_KEY_FILE_PATH)) {
-            if (PRODUCTION_MODE) process.exit(9);
-
-            // create e tmp file
-            LocalAuditClientCryptoProvider.createRsaPrivateKeyFileSync(AUDIT_KEY_FILE_PATH, 2048);
+        if (!logger) {
+            logger = new KafkaLogger(
+                BC_NAME,
+                APP_NAME,
+                APP_VERSION,
+                kafkaProducerOptions,
+                KAFKA_LOGS_TOPIC,
+                LOG_LEVEL
+            );
+            await (logger as KafkaLogger).init();
         }
+        globalLogger = this.logger = logger.createChild("Service");
 
-        const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_KEY_FILE_PATH);
-        const auditDispatcher = new KafkaAuditClientDispatcher(kafkaProducerOptions, KAFKA_AUDITS_TOPIC, logger);
-        // NOTE: to pass the same kafka logger to the audit client, make sure the logger is started/initialised already
-        auditClient = new AuditClient(BC_NAME, APP_NAME, APP_VERSION, cryptoProvider, auditDispatcher);
+        // start auditClient
+        if (!auditClient) {
+            if (!existsSync(AUDIT_KEY_FILE_PATH)) {
+                if (PRODUCTION_MODE) process.exit(9);
+                // create e tmp file
+                LocalAuditClientCryptoProvider.createRsaPrivateKeyFileSync(AUDIT_KEY_FILE_PATH, 2048);
+            }
+            const auditLogger = logger.createChild("AuditLogger");
+            auditLogger.setLogLevel(LogLevel.INFO);
+            const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_KEY_FILE_PATH);
+            const auditDispatcher = new KafkaAuditClientDispatcher(kafkaProducerOptions, KAFKA_AUDITS_TOPIC, auditLogger);
+            // NOTE: to pass the same kafka logger to the audit client, make sure the logger is started/initialised already
+            auditClient = new AuditClient(BC_NAME, APP_NAME, APP_VERSION, cryptoProvider, auditDispatcher);
+            await auditClient.init();
+        }
+        this.auditClient = auditClient;
 
-        await auditClient.init();
+
+        if(!appConfigRepo || !globalConfigRepo){
+            globalConfigRepo = appConfigRepo  = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
+            await appConfigRepo.init();
+        }
+        this.appConfigRepo = appConfigRepo;
+        this.globalConfigRepo = globalConfigRepo;
+
+        if (!messageProducer) {
+            const producerLogger = logger.createChild("producerLogger");
+            producerLogger.setLogLevel(LogLevel.INFO);
+            messageProducer = new MLKafkaJsonProducer(kafkaProducerOptions, producerLogger);
+            await messageProducer.connect();
+        }
+        this.messageProducer = messageProducer;
+
+
+        this.aggregate = new ConfigSetAggregate(
+            this.appConfigRepo,
+            this.globalConfigRepo,
+            this.auditClient,
+            this.messageProducer,
+            this.logger
+        );
+
+        await this.setupAndStartExpress();
     }
 
-    let configSetAgg: ConfigSetAggregate;
-    if(!appConfigRepo || ! globalConfigRepo){
-        const repo =  new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
-        await repo.init();
-        configSetAgg = new ConfigSetAggregate(repo, repo, logger, auditClient);
-    }else{
-        configSetAgg = new ConfigSetAggregate(appConfigRepo, globalConfigRepo, logger, auditClient);
+    static async setupAndStartExpress(): Promise<void> {
+        return new Promise<void>(resolve => {
+            // Start express server
+            this.app = express();
+            this.app.use(express.json()); // for parsing application/json
+            this.app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
+
+            const globalConfigsRoutes = new GlobalConfigsRoutes(this.aggregate, this.logger);
+            const appConfigsRoutes = new AppConfigsRoutes(this.aggregate, this.logger);
+
+            this.app.use(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}`, globalConfigsRoutes.Router);
+            this.app.use(`/${APPCONFIGSET_URL_RESOURCE_NAME}`, appConfigsRoutes.Router);
+
+            this.app.use((req: express.Request, res: express.Response) => {
+                // catch all
+                res.sendStatus(404);
+            });
+
+            let portNum = SVC_DEFAULT_HTTP_PORT;
+            if (process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {
+                portNum = parseInt(process.env["SVC_HTTP_PORT"]);
+            }
+
+            this.expressServer = this.app.listen(SVC_DEFAULT_HTTP_PORT, () => {
+                this.logger.info(`🚀 Server ready on port ${SVC_DEFAULT_HTTP_PORT}`);
+                this.logger.info(`${APP_NAME} server v: ${APP_VERSION} started`);
+
+                resolve();
+            });
+        });
     }
 
-    const app = setupExpress(configSetAgg, logger);
 
-    let portNum = SVC_DEFAULT_HTTP_PORT;
-    if(process.env["SVC_HTTP_PORT"] && !isNaN(parseInt(process.env["SVC_HTTP_PORT"]))) {
-        portNum = parseInt(process.env["SVC_HTTP_PORT"]);
+    static async stop() {
+        if (this.auditClient) await this.auditClient.destroy();
+        if (this.messageProducer) await this.messageProducer.destroy();
+        if (this.appConfigRepo) await this.appConfigRepo.destroy();
+        if (this.globalConfigRepo) await this.globalConfigRepo.destroy();
+
+        if (this.expressServer) await this.expressServer.close();
+        if (this.logger && this.logger instanceof KafkaLogger) await this.logger.destroy();
     }
-
-    expressServer = app.listen(portNum, () => {
-        console.log(`🚀 Server ready at: http://localhost:${portNum}`);
-        logger.info("Platform configuration service started");
-    });
 }
 
-export function stop(){
-    expressServer.close();
-}
+
+
+/**
+ * process termination and cleanup
+ */
 
 async function _handle_int_and_term_signals(signal: NodeJS.Signals): Promise<void> {
-    logger.info(`Service - ${signal} received - cleaning up...`);
+    console.info(`Service - ${signal} received - cleaning up...`);
+    let clean_exit = false;
+    setTimeout(() => {
+        clean_exit || process.exit(99);
+    }, 5000);
+
+    // call graceful stop routine
+    await Service.stop();
+
+    clean_exit = true;
     process.exit();
 }
 
 //catches ctrl+c event
-process.on("SIGINT", _handle_int_and_term_signals.bind(this));
-
+process.on("SIGINT", _handle_int_and_term_signals);
 //catches program termination event
-process.on("SIGTERM", _handle_int_and_term_signals.bind(this));
+process.on("SIGTERM", _handle_int_and_term_signals);
 
 //do something when app is closing
-process.on('exit', () => {
-    logger.info("Microservice - exiting...");
+process.on("exit", async () => {
+    globalLogger.info("Microservice - exiting...");
+});
+process.on("uncaughtException", (err: Error) => {
+    globalLogger.error(err);
+    console.log("UncaughtException - EXITING...");
+    process.exit(999);
 });

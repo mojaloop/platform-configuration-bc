@@ -52,6 +52,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     private _appConfigSets : Map<string, AppConfigurationSet[]> = new Map<string, AppConfigurationSet[]>();
     private _watching = false;
     private _saving = false;
+    private _watcher: fs.FSWatcher | null = null;
 
     constructor(filePath:string, logger: ILogger) {
         this._logger = logger.createChild(this.constructor.name);
@@ -121,7 +122,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         if (this._watching) return;
 
         let fsWait: NodeJS.Timeout | undefined; // debounce wait
-        watch(this._filePath, async (eventType, filename) => {
+        this._watcher = watch(this._filePath, async (eventType, filename) => {
             if (this._saving) return;
             if (eventType==="change") {
                 if (fsWait) return;
@@ -150,6 +151,14 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
         }
 
         this._ensureIsWatching();
+    }
+
+    async destroy():Promise<void>{
+        if(this._watcher){
+            this._watcher.close();
+            this._watcher = null;
+            this._watching = false;
+        }
     }
 
     /**************************************

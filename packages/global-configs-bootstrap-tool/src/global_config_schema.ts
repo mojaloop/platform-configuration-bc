@@ -45,7 +45,13 @@ export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
         name: "currencies",
         type: ConfigParameterTypes.LIST,
         defaultValue: currencies,
-        description: "Global Currencies list in format: {code: string, decimals: number}"
+        description: "Global Currencies list in format: {code: string, decimals: number}",
+        jsonSchema: JSON.stringify({
+            properties: {
+                code: {type: "string"},
+                decimals: {type: "int32"},
+            }
+        })
     });
 
     globalConfigSet.parameters.push({

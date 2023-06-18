@@ -32,6 +32,6 @@
 
 export * from "./commands";
 export * from "./errors";
-export * from "./configset_agg";
+export * from "./aggregate";
 export * from "./infrastructure_interfaces";
 

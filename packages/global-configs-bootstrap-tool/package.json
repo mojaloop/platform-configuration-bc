@@ -21,8 +21,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "clean": "npm run clean:npm; npm run clean:dist",
-    "clean:dist": "rm -rf dist",
-    "clean:npm": "rm -rf node_modules",
+    "clean:dist": "rm -Rf dist",
+    "clean:npm": "rm -Rf node_modules",
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
     "audit:resolve": "SHELL=sh resolve-audit",
@@ -30,8 +30,11 @@
     "dep:check": "ncu -e 2",
     "dep:update": "ncu -e 2 -u"
   },
+  "dependencies": {
+    "axios": "^1.4.0"
+  },
   "devDependencies": {
-    "@mojaloop/logging-bc-public-types-lib": "~0.1.15",
+    "@mojaloop/logging-bc-public-types-lib": "~0.1.19",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*"
   }
 }

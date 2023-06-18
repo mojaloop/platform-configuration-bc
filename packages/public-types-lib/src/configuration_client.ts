@@ -46,8 +46,11 @@ export interface IConfigurationClient {
 	get globalConfigs(): IGlobalConfiguration;
 
 	init(): Promise<void>;
+	destroy(): Promise<void>;
 	fetch(): Promise<void>;
 	bootstrap(ignoreDuplicateError?: boolean): Promise<boolean>;
+
+    setChangeHandlerFunction(fn: (type:"APP"|"GLOBAL")=>void): void;
 }
 
 export interface IGlobalConfiguration {

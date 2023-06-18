@@ -34,6 +34,7 @@ import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-co
 
 export interface IAppConfigSetRepository {
     init():Promise<void>;
+    destroy():Promise<void>;
 
     // app config set specific
     storeAppConfigSet(configSet:AppConfigurationSet):Promise<boolean>;
@@ -44,6 +45,7 @@ export interface IAppConfigSetRepository {
 
 export interface IGlobalConfigSetRepository {
     init():Promise<void>;
+    destroy():Promise<void>;
 
     // global config set specific
     storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<boolean>;

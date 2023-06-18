@@ -1,10 +1,29 @@
 "use strict";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
 import semver from "semver";
-import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
+import * as process from "process";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-// must use relative path imports pointing to the dist dirs of own repo packages
-import {ConfigParameterTypes} from "../../packages/public-types-lib/dist/";
-import {ConfigurationClient, DefaultConfigProvider} from "../../packages/client-lib/dist/";
+import {ConsoleLogger, ILogger} from "@mojaloop/logging-bc-public-types-lib";
+import {IMessageConsumer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {MLKafkaJsonConsumer, MLKafkaJsonProducer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
+import {
+    PlatformConfigGlobalConfigsChangedEvt,
+    PlatformConfigGlobalConfigsChangedEvtPayload
+} from "@mojaloop/platform-shared-lib-public-messages-lib";
+import {MockAuditClient} from "../mocks/mock_audit_client";
+
+// must use relative path imports pointing to the src dirs of own repo packages
+import {ConfigParameterTypes} from "../../packages/public-types-lib/src/";
+import {ConfigurationClient, DefaultConfigProvider} from "../../packages/client-lib/src/";
+
+// It is import to change the env var here before importing the Service (which reads it)
+process.env["CONFIG_REPO_STORAGE_FILE_PATH"] = join(tmpdir(), "configSetRepoTempStorageFile.json");
+import {Service} from "../../packages/configuration-svc/src/application/service";
+
+jest.setTimeout(30000); // 60 secs - change this to suit the test (ms)
 
 const ENV_NAME = "dev";
 const BC_NAME = "platform-configuration";
@@ -12,6 +31,7 @@ const APP_NAME = "platform-configuration-client-lib";
 const APP_VERSION = "0.0.1";
 const CONFIGSET_VERSION = "0.0.1";
 const CONFIG_SVC_BASEURL = "http://localhost:3100";
+const KAFKA_URL = process.env["KAFKA_URL"] || "localhost:9092";
 
 let configClient: ConfigurationClient;
 let defaultConfigProvider: DefaultConfigProvider;
@@ -20,7 +40,10 @@ const logger: ILogger = new ConsoleLogger();
 
 describe("client-lib ConfigurationSet tests", () => {
     beforeAll(async () => {
-        // Setup
+        // setup the service - mock only the logger and the audit client
+        await Service.start(logger, new MockAuditClient(logger));
+
+        // Setup the client
         defaultConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
         expect(defaultConfigProvider).toBeDefined()
         expect(defaultConfigProvider).not.toBeNull()
@@ -34,6 +57,8 @@ describe("client-lib ConfigurationSet tests", () => {
 
     afterAll(async () => {
         // Cleanup
+        await configClient.destroy();
+        await Service.stop();
     })
 
     test("AppConfiguration - create schema", async () => {
@@ -182,8 +207,51 @@ describe("client-lib ConfigurationSet tests", () => {
     })
 
 
-    /*  test('fetch', async () => {
-        await appConfiguration.fetch();
+    test("ConfigurationClient - event notification setup", async () => {
+        // stop other
+        await configClient.destroy();
 
-     })*/
+        // Setup
+        const messageConsumer: IMessageConsumer = new MLKafkaJsonConsumer({
+            kafkaBrokerList: KAFKA_URL,
+            kafkaGroupId: "ConfigurationClient_tests",
+        }, logger);
+
+        defaultConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL, messageConsumer);
+
+        expect(defaultConfigProvider).toBeDefined()
+        expect(defaultConfigProvider).not.toBeNull()
+
+        configClient = new ConfigurationClient(ENV_NAME, BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION, defaultConfigProvider);
+
+        await configClient.init();
+    });
+
+    test("ConfigurationClient - event notification event test", async () => {
+        return new Promise<void>(async (resolve) => {
+            let kafkaProducer: MLKafkaJsonProducer = new MLKafkaJsonProducer({
+                kafkaBrokerList: KAFKA_URL,
+                producerClientId: "ConfigurationClient_tests"
+            }, logger);
+
+            configClient.setChangeHandlerFunction(async (type: "APP" | "GLOBAL") => {
+                expect(type).toEqual("GLOBAL");
+
+                await kafkaProducer.destroy();
+
+                resolve();
+            });
+
+            const payload: PlatformConfigGlobalConfigsChangedEvtPayload = {
+                environmentName: ENV_NAME,
+                schemaVersion: BC_NAME,
+                iterationNumber: 0
+            };
+
+            const evt = new PlatformConfigGlobalConfigsChangedEvt(payload);
+
+            await kafkaProducer.connect();
+            await kafkaProducer.send(evt);
+        });
+    });
 })
