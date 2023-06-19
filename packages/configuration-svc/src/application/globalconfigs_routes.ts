@@ -53,7 +53,7 @@ export class GlobalConfigsRoutes {
         // bind routes - global config sets
         this._router.post("/bootstrap", this._globalConfigSet_postBootstrap.bind(this));
         this._router.get("/:env", this._globalConfigSet_get.bind(this));
-        this._router.post("/:env/setvalues", this._globalConfigSet_setValues.bind(this));
+        this._router.post("/:env", this._globalConfigSet_setValues.bind(this));
     }
 
     get Router(): express.Router {
@@ -141,21 +141,11 @@ export class GlobalConfigsRoutes {
             return;
         }
 
-        const bodyObj:{
-            schemaVersion: string,
-            iteration: number,
-            newValues: [{
-                type: ConfigItemTypes,
-                name: string,
-                value: any
-            }]
-        } = req.body;
-
         const cmdPayload: GlobalConfigSetChangeValuesCmdPayload = {
             environmentName: envParam,
-            schemaVersion: bodyObj.schemaVersion,
-            iteration: bodyObj.iteration,
-            newValues: bodyObj.newValues
+            schemaVersion: req.body.schemaVersion,
+            iterationNumber: req.body.iterationNumber,
+            newValues: req.body.newValues
         };
 
         await this._agg.processChangeGlobalConfigSetValuesCmd(cmdPayload).then(()=>{

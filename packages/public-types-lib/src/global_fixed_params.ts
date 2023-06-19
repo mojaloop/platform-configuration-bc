@@ -30,21 +30,28 @@
 
 "use strict";
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {ConfigParameterTypes} from "./general_config_types";
 
-// BoundedContext config set specific
-export class BoundedContextConfigurationSetNotFoundError extends Error {}
-export class InvalidBoundedContextConfigurationSetError extends Error {}
+export type Currency = {
+    // 3-letter currency code as in ISO 4217 - EUR, USD, etc
+    code: string;
+    // Number of decimals for currency (for most currencies this will be 2)
+    decimals: number;
+}
 
-// Global config set specific
-export class GlobalConfigurationSetNotFoundError extends Error {}
-export class InvalidGlobalConfigurationSetError extends Error {}
+export const GLOBAL_FIXED_PARAMETERS_DEFINITION: {
+    [key: string]: { name: string; jtdSchema: string; description: string; type: ConfigParameterTypes }
+} = {
+    "CURRENCIES":{
+        name: "CURRENCIES",
+        type: ConfigParameterTypes.LIST,
+        description: "Global Currencies list in format: {code: string, decimals: number}",
+        jtdSchema: JSON.stringify({
+            properties: {
+                code: {type: "string"},
+                decimals: {type: "int32"},
+            }
+        })
+    }
+};
 
-
-// common errors
-export class CannotCreateDuplicateConfigSetError extends Error {}
-export class CannotCreateOverridePreviousVersionConfigSetError extends Error {}
-export class ParameterNotFoundError extends Error {}
-export class CouldNotStoreConfigSetError extends Error {}
-export class OnlyLatestSchemaVersionCanBeChangedError extends Error {}
-export class OnlyLatestIterationCanBeChangedError extends Error {}

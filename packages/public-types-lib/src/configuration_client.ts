@@ -31,45 +31,52 @@
 "use strict";
 
 import {
-	ConfigFeatureFlag,
-	ConfigParameter,
-	ConfigParameterTypes,
-	ConfigSecret
+    ConfigFeatureFlag,
+    ConfigParameter,
+    ConfigParameterTypes,
+    ConfigSecret,
 } from "./general_config_types";
+import {Currency} from "./global_fixed_params";
 
 export interface IConfigurationClient {
 	get environmentName(): string;
 	get boundedContextName(): string;
-	get applicationName(): string;
-	get applicationVersion(): string;
-	get appConfigs(): IAppConfiguration;
-	get globalConfigs(): IGlobalConfiguration;
+	get bcConfigs(): IBoundedContextConfigurationClient;
+	get globalConfigs(): IGlobalConfigurationClient;
 
 	init(): Promise<void>;
 	destroy(): Promise<void>;
 	fetch(): Promise<void>;
 	bootstrap(ignoreDuplicateError?: boolean): Promise<boolean>;
 
-    setChangeHandlerFunction(fn: (type:"APP"|"GLOBAL")=>void): void;
+    setChangeHandlerFunction(fn: (type:"BC"|"GLOBAL")=>void): void;
 }
 
-export interface IGlobalConfiguration {
-	schemaVersion: string;
-	iterationNumber: number;
+export interface IBaseConfigurationClient {
+    schemaVersion: string;
+    iterationNumber: number;
 
-	has(name: string): boolean;
-	allKeys(): string[];
-	getParam(paramName: string): ConfigParameter | null;
-	getAllParams(): ConfigParameter[];
-	getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null;
-	getAllFeatureFlags(): ConfigFeatureFlag[];
-	getSecret(secretName: string): ConfigSecret | null;
-	getAllSecrets(): ConfigSecret[];
+    // only reads are allowed on base/GlobalConfigurations
+    has(name: string): boolean;
+    allKeys(): string[];
+    getParam(paramName: string): ConfigParameter | null;
+    getAllParams(): ConfigParameter[];
+    getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null;
+    getAllFeatureFlags(): ConfigFeatureFlag[];
+    getSecret(secretName: string): ConfigSecret | null;
+    getAllSecrets(): ConfigSecret[];
 }
 
-export interface IAppConfiguration extends IGlobalConfiguration {
+// extend IBaseConfigurationClient specific for global
+export interface IGlobalConfigurationClient extends IBaseConfigurationClient{
+    // fixed global configs
+    getCurrencies():Currency[];
+}
+
+// extend IBaseConfigurationClient specific for bounded context configs - client can write
+export interface IBoundedContextConfigurationClient extends IBaseConfigurationClient {
 	addParam(param: ConfigParameter): void;
-	addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void;
+	addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string, jsonSchema?: string): void;
 	addFeatureFlag(featureFlag: ConfigFeatureFlag): void;
 	addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void;
 	addSecret(secret: ConfigSecret): void;

@@ -57,7 +57,7 @@ const logger: ILogger = new ConsoleLogger();
  * - NEVER make changes to param names or types
  * - NEVER remove params, add a disabled note to its description
  */
-const CONFIGSET_VERSION = "0.1.3";
+const CONFIGSET_VERSION = "0.1.33";
 
 // create an empty write only version of the global configuration set schema
 const globalConfigSet:WriteGlobalConfigurationSet = {
@@ -72,7 +72,7 @@ const globalConfigSet:WriteGlobalConfigurationSet = {
 setSchema(globalConfigSet);
 
 // send the global configuration set schema to the central service for storage
-logger.info(`global-configs-bootstrap-tool - going to boostrap configSet with: 
+logger.info(`global-configs-bootstrap-tool - going to boostrap configSet with:
 \n\t- env name: ${globalConfigSet.environmentName} \
 \n\t- schema version: ${globalConfigSet.schemaVersion} \
 \n\t- ${globalConfigSet.parameters.length} parameter(s) \

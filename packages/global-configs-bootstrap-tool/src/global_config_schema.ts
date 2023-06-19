@@ -31,7 +31,10 @@
 "use strict";
 
 import {WriteGlobalConfigurationSet} from "./local_types";
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {
+    ConfigParameterTypes,
+    GLOBAL_FIXED_PARAMETERS_DEFINITION
+} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 // TODO this should be on a separate file
 import currencies from "./list_files/currencies.json";
@@ -39,20 +42,18 @@ import currencies from "./list_files/currencies.json";
 
 export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
     //////////////////////////////
-    // Add Parameters to the schema here
+    // Start with fixed parameters (defaults)
 
     globalConfigSet.parameters.push({
-        name: "currencies",
-        type: ConfigParameterTypes.LIST,
-        defaultValue: currencies,
-        description: "Global Currencies list in format: {code: string, decimals: number}",
-        jsonSchema: JSON.stringify({
-            properties: {
-                code: {type: "string"},
-                decimals: {type: "int32"},
-            }
-        })
+        name: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.name,
+        type: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.type,
+        description: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.description,
+        jsonSchema: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.jtdSchema,
+        defaultValue: currencies
     });
+
+    //////////////////////////////
+    // Add Parameters to the schema here
 
     globalConfigSet.parameters.push({
         name: "boolParam1",

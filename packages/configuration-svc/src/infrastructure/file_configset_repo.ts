@@ -31,8 +31,8 @@
 "use strict";
 import semver from "semver";
 import {readFile, stat, writeFile} from "fs/promises";
-import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
-import {GlobalConfigurationSet, AppConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {IBoundedContextConfigSetRepository, IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
+import {GlobalConfigurationSet, BoundedContextConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import fs from "fs";
 import {watch} from "node:fs";
@@ -42,14 +42,14 @@ import {watch} from "node:fs";
 
 declare type DataFileStruct = {
     globalConfigSets: GlobalConfigurationSet[],
-    appConfigSets: AppConfigurationSet[]
+    bcConfigSets: BoundedContextConfigurationSet[]
 };
 
-export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfigSetRepository{
+export class FileConfigSetRepo implements IBoundedContextConfigSetRepository, IGlobalConfigSetRepository{
     private readonly  _logger: ILogger;
     private readonly _filePath: string;
     private _globalConfigSet : GlobalConfigurationSet[] = [];
-    private _appConfigSets : Map<string, AppConfigurationSet[]> = new Map<string, AppConfigurationSet[]>();
+    private _bcConfigSets : Map<string, BoundedContextConfigurationSet[]> = new Map<string, BoundedContextConfigurationSet[]>();
     private _watching = false;
     private _saving = false;
     private _watcher: fs.FSWatcher | null = null;
@@ -63,7 +63,7 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
     private async _loadFromFile():Promise<boolean>{
         this._globalConfigSet = [];
-        this._appConfigSets.clear();
+        this._bcConfigSets.clear();
 
         let fileData: DataFileStruct;
         try{
@@ -76,20 +76,20 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
 
             this._globalConfigSet = fileData.globalConfigSets || [];
 
-            for(const rec of fileData.appConfigSets){
-                    const id = this._configSetIdString(rec.environmentName, rec.boundedContextName, rec.applicationName);
-                const existing = this._appConfigSets.get(id);
+            for(const rec of fileData.bcConfigSets){
+                    const id = this._configSetIdString(rec.environmentName, rec.boundedContextName);
+                const existing = this._bcConfigSets.get(id);
                 if (existing) {
                     existing.push(rec);
                 }else{
-                    this._appConfigSets.set(id, [rec]);
+                    this._bcConfigSets.set(id, [rec]);
                 }
             }
         }catch (e) {
             throw new Error("cannot read FileConfigSetRepo storage file");
         }
 
-        this._logger.info(`Successfully read file contents - globalConfigSet count: ${this._globalConfigSet.length} and appConfigSets count: ${this._appConfigSets.size}`);
+        this._logger.info(`Successfully read file contents - globalConfigSet count: ${this._globalConfigSet.length} and bcConfigSets count: ${this._bcConfigSets.size}`);
 
         return true;
     }
@@ -99,13 +99,13 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             this._saving = true;
             const flatRecs: DataFileStruct = {
                 globalConfigSets: [],
-                appConfigSets: []
+                bcConfigSets: []
             };
 
             flatRecs.globalConfigSets.push(...this._globalConfigSet);
 
-            for(const configs of Array.from(this._appConfigSets.values())){
-                flatRecs.appConfigSets.push(...configs);
+            for(const configs of Array.from(this._bcConfigSets.values())){
+                flatRecs.bcConfigSets.push(...configs);
             }
 
             const strContents = JSON.stringify(flatRecs, null, 4);
@@ -162,50 +162,50 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     }
 
     /**************************************
-     * App config set code
+     * BC config set code
      ************************************/
 
-    private _deepCopyAppConfigSet(appConfigSet:AppConfigurationSet):AppConfigurationSet{
+    private _deepCopyBoundedContextConfigSet(bcConfigSet:BoundedContextConfigurationSet):BoundedContextConfigurationSet{
         // we need this to de-reference the objects in memory when passing them to callers
-        return JSON.parse(JSON.stringify(appConfigSet));
+        return JSON.parse(JSON.stringify(bcConfigSet));
     }
 
 
-    private _configSetIdString(envName:string, bcName:string, appName:string): string{
-        return envName.toUpperCase()+"::"+bcName.toUpperCase()+"::"+appName.toUpperCase();
+    private _configSetIdString(envName:string, bcName:string): string{
+        return envName.toUpperCase()+"::"+bcName.toUpperCase();
     }
 
-    private _getAppConfigVersions(envName:string, bcName:string, appName:string):AppConfigurationSet[]{
-        const configs:AppConfigurationSet[] | undefined = this._appConfigSets.get(this._configSetIdString(envName, bcName, appName));
+    private _getBoundedContextConfigVersions(envName:string, bcName:string):BoundedContextConfigurationSet[]{
+        const configs:BoundedContextConfigurationSet[] | undefined = this._bcConfigSets.get(this._configSetIdString(envName, bcName));
 
         if(!configs) {
             return [];
         }
 
         // sort by decreasing schemaVersion order (latest version first)
-        configs.sort((a: AppConfigurationSet, b: AppConfigurationSet) => semver.compare(b.schemaVersion, a.schemaVersion));
+        configs.sort((a: BoundedContextConfigurationSet, b: BoundedContextConfigurationSet) => semver.compare(b.schemaVersion, a.schemaVersion));
 
         return configs;
     }
 
-    private _getAppConfigLatestIteration(completeVersionConfigs:AppConfigurationSet[], schemaVersion:string):AppConfigurationSet | null{
-        const versionConfigSets: AppConfigurationSet[] = completeVersionConfigs.filter(value => value.schemaVersion === schemaVersion);
+    private _getBoundedContextConfigLatestIteration(completeVersionConfigs:BoundedContextConfigurationSet[], schemaVersion:string):BoundedContextConfigurationSet | null{
+        const versionConfigSets: BoundedContextConfigurationSet[] = completeVersionConfigs.filter(value => value.schemaVersion === schemaVersion);
 
         if(versionConfigSets.length <=0 ){
             return null;
         }
 
-        versionConfigSets.sort((a: AppConfigurationSet, b: AppConfigurationSet) => b.iterationNumber - a.iterationNumber);
+        versionConfigSets.sort((a: BoundedContextConfigurationSet, b: BoundedContextConfigurationSet) => b.iterationNumber - a.iterationNumber);
         const lastIteraction = versionConfigSets[0];
 
         return lastIteraction ?? null;
     }
 
-    async fetchAllAppConfigSets(envName:string): Promise<AppConfigurationSet[]> {
-        const allVersions:AppConfigurationSet[] = [];
+    async fetchAllBoundedContextConfigSets(envName:string): Promise<BoundedContextConfigurationSet[]> {
+        const allVersions:BoundedContextConfigurationSet[] = [];
 
-        for(const key of this._appConfigSets.keys()){
-            const versions = this._appConfigSets.get(key) || [];
+        for(const key of this._bcConfigSets.keys()){
+            const versions = this._bcConfigSets.get(key) || [];
             for(const version of versions){
                 if(version.environmentName.toUpperCase() === envName.toUpperCase()){
                     allVersions.push(version);
@@ -217,58 +217,57 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
             return [];
         }
 
-        return allVersions.map(value => this._deepCopyAppConfigSet(value));
+        return allVersions.map(value => this._deepCopyBoundedContextConfigSet(value));
     }
 
     // returns the latest iteration for the latest schema version
-    async fetchLatestAppConfigSet(envName:string, bcName: string, appName: string): Promise<AppConfigurationSet | null> {
-        const allVersions:AppConfigurationSet[] = this._getAppConfigVersions(envName, bcName, appName);
+    async fetchLatestBoundedContextConfigSet(envName:string, bcName: string): Promise<BoundedContextConfigurationSet | null> {
+        const allVersions:BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(envName, bcName);
         if(allVersions.length <= 0){
             return null;
         }
 
         const latestVersion = allVersions[0].schemaVersion;
-        const lastPatch = this._getAppConfigLatestIteration(allVersions, latestVersion);
+        const lastPatch = this._getBoundedContextConfigLatestIteration(allVersions, latestVersion);
 
         if(!lastPatch){
             return null;
         }
 
-        return this._deepCopyAppConfigSet(lastPatch);
+        return this._deepCopyBoundedContextConfigSet(lastPatch);
     }
 
-    async fetchAppConfigSetVersion(envName:string, bcName: string, appName: string, version:string): Promise<AppConfigurationSet | null> {
-        const allVersions:AppConfigurationSet[] = this._getAppConfigVersions(envName, bcName, appName);
+    async fetchBoundedContextConfigSetVersion(envName:string, bcName: string, version:string): Promise<BoundedContextConfigurationSet | null> {
+        const allVersions:BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(envName, bcName);
         if(allVersions.length <= 0){
             return null;
         }
 
-        const lastPatch = this._getAppConfigLatestIteration(allVersions, version);
+        const lastPatch = this._getBoundedContextConfigLatestIteration(allVersions, version);
 
         if(!lastPatch){
             return null;
         }
 
-        return this._deepCopyAppConfigSet(lastPatch);
+        return this._deepCopyBoundedContextConfigSet(lastPatch);
     }
 
-    async storeAppConfigSet(appConfigSet: AppConfigurationSet): Promise<boolean> {
-        // if not found this._getAppConfigVersions returns empty array
-        const versions: AppConfigurationSet[] = this._getAppConfigVersions(appConfigSet.environmentName, appConfigSet.boundedContextName, appConfigSet.applicationName);
+    async storeBoundedContextConfigSet(bcConfigSet: BoundedContextConfigurationSet): Promise<void> {
+        // if not found this._getBoundedContextConfigVersions returns empty array
+        const versions: BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(bcConfigSet.environmentName, bcConfigSet.boundedContextName);
         const found:boolean = versions.length > 0;
 
         // checks should happen in the caller agg, this should blindly overwrite
-        versions.push(appConfigSet);
+        versions.push(bcConfigSet);
 
         if(!found){
-            const idStr = this._configSetIdString(appConfigSet.environmentName, appConfigSet.boundedContextName, appConfigSet.applicationName);
-            this._appConfigSets.set(idStr, versions);
+            const idStr = this._configSetIdString(bcConfigSet.environmentName, bcConfigSet.boundedContextName);
+            this._bcConfigSets.set(idStr, versions);
         }
 
         await this._saveToFile();
 
-        this._logger.info(`In env:  ${appConfigSet.environmentName} - stored app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}, appVersion: ${appConfigSet.applicationVersion}, schemaVersion: ${appConfigSet.schemaVersion} and iteration number: ${appConfigSet.iterationNumber}`);
-        return true;
+        this._logger.info(`In env:  ${bcConfigSet.environmentName} - stored BC configuration set for BC: ${bcConfigSet.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iteration number: ${bcConfigSet.iterationNumber}`);
     }
 
     /**************************************
@@ -281,18 +280,17 @@ export class FileConfigSetRepo implements IAppConfigSetRepository, IGlobalConfig
     }
 
     // global config set specific
-    async storeGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):Promise<boolean>{
+    async storeGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):Promise<void>{
         // checks should happen in the caller agg, this should blindly overwrite
         this._globalConfigSet.push(globalConfigSet);
 
         await this._saveToFile();
 
         this._logger.info(`In env:  ${globalConfigSet.environmentName} - stored global configuration set with schemaVersion: ${globalConfigSet.schemaVersion} and iteration number: ${globalConfigSet.iterationNumber}`);
-        return true;
     }
 
 
-    async fetchGlobalAppConfigSets(envName:string):Promise<GlobalConfigurationSet[]>{
+    async fetchGlobalBoundedContextConfigSets(envName:string):Promise<GlobalConfigurationSet[]>{
         if(this._globalConfigSet.length <= 0)
             return [];
 

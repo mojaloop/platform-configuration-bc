@@ -32,23 +32,23 @@
 import express from "express";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
-    AppConfigurationSet,
+    BoundedContextConfigurationSet,
     ConfigItemTypes
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {
     ConfigSetAggregate,
-    AppConfigSetChangeValuesCmdPayload,
+    BoundedContextConfigSetChangeValuesCmdPayload,
     CannotCreateDuplicateConfigSetError,
     CannotCreateOverridePreviousVersionConfigSetError,
     CouldNotStoreConfigSetError,
-    InvalidAppConfigurationSetError,
-    AppConfigurationSetNotFoundError,
+    InvalidBoundedContextConfigurationSetError,
+    BoundedContextConfigurationSetNotFoundError,
     ParameterNotFoundError,
     OnlyLatestIterationCanBeChangedError,
     OnlyLatestSchemaVersionCanBeChangedError
 } from "@mojaloop/platform-configuration-bc-domain-lib";
 
-export class AppConfigsRoutes {
+export class BoundedContextConfigsRoutes {
     private _logger: ILogger;
     private _agg: ConfigSetAggregate;
     private _router = express.Router();
@@ -58,39 +58,39 @@ export class AppConfigsRoutes {
         this._logger = logger;
         this._agg = aggregate;
 
-        // bind routes - per app config sets
-        this._router.post( "/bootstrap", this._appConfigSet_postBootstrap.bind(this));
-        this._router.get("/:env", this._appConfigSet_getAll.bind(this));
-        this._router.get("/:env/:bc/:app", this._appConfigSet_getByApp.bind(this));
-        this._router.post("/:env/:bc/:app/setvalues", this._appConfigSet_setValues.bind(this));
+        // bind routes - per BC config sets
+        this._router.post( "/bootstrap", this._bcConfigSet_postBootstrap.bind(this));
+        this._router.get("/:env", this._bcConfigSet_getAll.bind(this));
+        this._router.get("/:env/:bc", this._bcConfigSet_getByBC.bind(this));
+        this._router.post("/:env/:bc", this._bcConfigSet_setValues.bind(this));
     }
 
     get Router(): express.Router {
         return this._router;
     }
 
-    // handlers - per app config sets
-    private async _appConfigSet_postBootstrap(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
-        const data: AppConfigurationSet = req.body;
+    // handlers - per BC config sets
+    private async _bcConfigSet_postBootstrap(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
+        const data: BoundedContextConfigurationSet = req.body;
         this._logger.debug(data);
 
-        await this._agg.processCreateAppConfigSetCmd(data).then((success) => {
+        await this._agg.processCreateBoundedContextConfigSetCmd(data).then((success) => {
             res.status(200).json({status: "ok"});
         }).catch((error: Error) => {
             if (error instanceof CannotCreateDuplicateConfigSetError) {
                 res.status(409).json({
                     status: "error",
-                    msg: "received duplicated app configuration set, cannot update"
+                    msg: "received duplicated BC configuration set, cannot update"
                 });
             } else if (error instanceof CannotCreateOverridePreviousVersionConfigSetError) {
                 res.status(400).json({
                     status: "error",
-                    msg: "received app configuration set has lower id than latest available, cannot update"
+                    msg: "received BC configuration set has lower id than latest available, cannot update"
                 });
-            } else if (error instanceof InvalidAppConfigurationSetError) {
+            } else if (error instanceof InvalidBoundedContextConfigurationSetError) {
                 res.status(400).json({
                     status: "error",
-                    msg: "invalid app configuration set"
+                    msg: "invalid BC configuration set"
                 });
             } else {
                 res.status(500).json({
@@ -101,7 +101,7 @@ export class AppConfigsRoutes {
         });
     }
 
-    private async _appConfigSet_getAll(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
+    private async _bcConfigSet_getAll(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
         const envParam = req.params["env"] ?? null;
 
         // validate
@@ -111,57 +111,56 @@ export class AppConfigsRoutes {
             return;
         }
 
-        const retAppConfigSets: AppConfigurationSet[] = await this._agg.getAllAppConfigSets(envParam);
+        const retBoundedContextConfigSets: BoundedContextConfigurationSet[] = await this._agg.getAllBoundedContextConfigSets(envParam);
 
-        if (!retAppConfigSets) {
-            this._logger.debug("no app configuration sets found");
+        if (!retBoundedContextConfigSets) {
+            this._logger.debug("no BC configuration sets found");
             res.sendStatus(404);
             return;
         }
-        res.status(200).json(retAppConfigSets);
+        res.status(200).json(retBoundedContextConfigSets);
     }
 
-    private async _appConfigSet_getByApp(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
+    private async _bcConfigSet_getByBC(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
         const envParam = req.params["env"] ?? null;
         const ownerBcParam = req.params["bc"] ?? null;
-        const ownerAppParam = req.params["app"] ?? null;
         // optional query param
         const versionParam = req.query["version"]?.toString() ?? null;
 
         // validate
-        if (!envParam || envParam==="" || !ownerBcParam || ownerBcParam==="" || !ownerAppParam || ownerAppParam==="") {
-            this._logger.warn("Invalid app configuration set request received");
+        if (!envParam || envParam==="" || !ownerBcParam || ownerBcParam==="") {
+            this._logger.warn("Invalid BC configuration set request received");
             res.sendStatus(400);
             return;
         }
 
-        let retAppConfigSet: AppConfigurationSet | null;
+        let retBoundedContextConfigSet: BoundedContextConfigurationSet | null;
 
         if (!versionParam) {
-            retAppConfigSet = await this._agg.getLatestAppConfigSet(envParam, ownerBcParam, ownerAppParam);
+            retBoundedContextConfigSet = await this._agg.getLatestBoundedContextConfigSet(envParam, ownerBcParam);
         } else {
-            retAppConfigSet = await this._agg.getAppConfigSetVersion(envParam, ownerBcParam, ownerAppParam, versionParam);
+            retBoundedContextConfigSet = await this._agg.getBoundedContextConfigSetVersion(envParam, ownerBcParam, versionParam);
         }
 
-        if (!retAppConfigSet) {
-            this._logger.debug("app configuration set not found");
+        if (!retBoundedContextConfigSet) {
+            this._logger.debug("bc configuration set not found");
             res.sendStatus(404);
             return;
         }
-        res.status(200).json(retAppConfigSet);
+        res.status(200).json(retBoundedContextConfigSet);
         return;
     }
 
-    private async _appConfigSet_setValues(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
+    private async _bcConfigSet_setValues(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
         const envParam = req.params["env"] ?? null;
         const ownerBcParam = req.params["bc"] ?? null;
-        const ownerAppParam = req.params["app"] ?? null;
+
 
         // optional query param
         //const versionParam = req.query["version"]?.toString() ?? null;
 
-        // validate owner, app and version
-        if (!envParam || !ownerBcParam || !ownerAppParam) {
+        // validate owner, BC and version
+        if (!envParam || !ownerBcParam ) {
             res.status(400).json({
                 status: "error",
                 msg: "invalid request"
@@ -169,33 +168,22 @@ export class AppConfigsRoutes {
             return;
         }
 
-        const bodyObj:{
-            schemaVersion: string,
-            iteration: number,
-            newValues: [{
-                type: ConfigItemTypes,
-                name: string,
-                value: any
-            }]
-        } = req.body;
-
-        const cmdPayload: AppConfigSetChangeValuesCmdPayload = {
+        const cmdPayload: BoundedContextConfigSetChangeValuesCmdPayload = {
             environmentName: envParam,
             boundedContextName: ownerBcParam,
-            applicationName: ownerAppParam,
-            schemaVersion: bodyObj.schemaVersion,
-            iteration: bodyObj.iteration,
-            newValues: bodyObj.newValues
+            schemaVersion: req.body.schemaVersion,
+            iterationNumber: req.body.iterationNumber,
+            newValues: req.body.newValues
         };
 
-        await this._agg.processChangeAppConfigSetValuesCmd(cmdPayload).then(()=>{
+        await this._agg.processChangeBoundedContextConfigSetValuesCmd(cmdPayload).then(()=>{
             return res.status(200).send({status: "ok"});
         }).catch(error => {
             // TODO should return multiple errors
-            if (error instanceof AppConfigurationSetNotFoundError) {
+            if (error instanceof BoundedContextConfigurationSetNotFoundError) {
                 res.status(404).json({
                     status: "error",
-                    msg: "app configuration set not found"
+                    msg: "bc configuration set not found"
                 });
             }else if (error instanceof ParameterNotFoundError) {
                 res.status(404).json({
@@ -205,7 +193,7 @@ export class AppConfigsRoutes {
             }else if (error instanceof CouldNotStoreConfigSetError) {
                 res.status(400).json({
                     status: "error",
-                    msg: "Not able to store app configuration set"
+                    msg: "Not able to store BC configuration set"
                 });
             }else if (error instanceof OnlyLatestSchemaVersionCanBeChangedError) {
                 res.status(400).json({

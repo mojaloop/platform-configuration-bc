@@ -31,8 +31,9 @@
 "use strict";
 
 import {
-    APPCONFIGSET_URL_RESOURCE_NAME,
-    AppConfigurationSet,
+    GLOBALCONFIGSET_URL_RESOURCE_NAME,
+    BCCONFIGSET_URL_RESOURCE_NAME,
+    BoundedContextConfigurationSet,
     GlobalConfigurationSet
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
@@ -86,11 +87,11 @@ export class DefaultConfigProvider implements IConfigProvider {
         await this._changerHandler(message as DomainEventMsg);
     }
 
-    async boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
+    async boostrapBoundedContextConfigs(configSetDto:BoundedContextConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
         //const resp: AxiosResponse<any> =
-        await this._client.post(`/${APPCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
+        await this._client.post(`/${BCCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
             console.log(resp.data);
             return true;
         }).catch((err:AxiosError) => {
@@ -125,32 +126,31 @@ export class DefaultConfigProvider implements IConfigProvider {
         if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
-    async fetchAppConfigs(envName:string, bcName:string, appName:string, schemaVersion:string): Promise<AppConfigurationSet | null>{
+    async fetchBoundedContextConfigs(envName:string, bcName:string, schemaVersion:string): Promise<BoundedContextConfigurationSet | null>{
         this._checkInitialised();
 
-        let appConfigSetData: AppConfigurationSet;
+        let bcConfigSetData: BoundedContextConfigurationSet;
         try {
-            const resp = await this._client.get(`/${APPCONFIGSET_URL_RESOURCE_NAME}/${envName}/${bcName}/${appName}?version=${schemaVersion}`);
+            const resp = await this._client.get(`/${BCCONFIGSET_URL_RESOURCE_NAME}/${envName}/${bcName}/?version=${schemaVersion}`);
             if(resp.status !== 200) {
                 return null;
             }
-            appConfigSetData = resp.data;
+            bcConfigSetData = resp.data;
 
         } catch (error) {
             console.error(error);
             return null;
         }
 
-        if(appConfigSetData.environmentName.toUpperCase() !== envName.toUpperCase()
-                || appConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
-                || appConfigSetData.applicationName.toUpperCase() !== appName.toUpperCase()
-                || appConfigSetData.schemaVersion != schemaVersion
-                || appConfigSetData.iterationNumber < 0){
-            console.warn("Invalid AppConfigurationSet version received in DefaultConfigProvider.fetchAppConfigs(), must match bc name, app name and config schema version");
+        if(bcConfigSetData.environmentName.toUpperCase() !== envName.toUpperCase()
+                || bcConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
+                || bcConfigSetData.schemaVersion != schemaVersion
+                || bcConfigSetData.iterationNumber < 0){
+            console.warn("Invalid BoundedContextConfigurationSet version received in DefaultConfigProvider.fetchBoundedContextConfigs(), must match BC name and config schema version");
             return null;
         }
 
-        return appConfigSetData;
+        return bcConfigSetData;
     }
 
     async fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>{
@@ -158,7 +158,7 @@ export class DefaultConfigProvider implements IConfigProvider {
 
         let globalConfigurationSet: GlobalConfigurationSet;
         try {
-            const resp = await this._client.get(`/${APPCONFIGSET_URL_RESOURCE_NAME}/${envName}?latest`);
+            const resp = await this._client.get(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/${envName}?latest`);
             if(resp.status !== 200) {
                 return null;
             }

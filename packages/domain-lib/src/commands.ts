@@ -32,13 +32,10 @@
 
 import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
-export type AppConfigSetChangeValuesCmdPayload = {
+export type GlobalConfigSetChangeValuesCmdPayload = {
     environmentName: string,
-    boundedContextName: string,
-    applicationName: string,
-    //applicationVersion: string, // no need for this, we control from schemaVersion and iteration number
     schemaVersion: string,
-    iteration: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
+    iterationNumber: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
     newValues: [{
         type: ConfigItemTypes;
         name: string;
@@ -46,13 +43,8 @@ export type AppConfigSetChangeValuesCmdPayload = {
     }]
 }
 
-export type GlobalConfigSetChangeValuesCmdPayload = {
-    environmentName: string,
-    schemaVersion: string,
-    iteration: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
-    newValues: [{
-        type: ConfigItemTypes;
-        name: string;
-        value: any;
-    }]
+
+export type BoundedContextConfigSetChangeValuesCmdPayload = GlobalConfigSetChangeValuesCmdPayload & {
+    boundedContextName: string,
 }
+

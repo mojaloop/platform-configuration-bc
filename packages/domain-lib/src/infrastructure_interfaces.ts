@@ -30,17 +30,17 @@
 
 "use strict";
 
-import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {BoundedContextConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
-export interface IAppConfigSetRepository {
+export interface IBoundedContextConfigSetRepository {
     init():Promise<void>;
     destroy():Promise<void>;
 
-    // app config set specific
-    storeAppConfigSet(configSet:AppConfigurationSet):Promise<boolean>;
-    fetchAllAppConfigSets(envName:string):Promise<AppConfigurationSet[]>;
-    fetchLatestAppConfigSet(envName:string, bcName:string, appName:string):Promise<AppConfigurationSet | null>;
-    fetchAppConfigSetVersion(envName:string, bcName:string, appName:string, version:string):Promise<AppConfigurationSet | null>;
+    // BC config set specific
+    storeBoundedContextConfigSet(configSet:BoundedContextConfigurationSet):Promise<void>;
+    fetchAllBoundedContextConfigSets(envName:string):Promise<BoundedContextConfigurationSet[]>;
+    fetchLatestBoundedContextConfigSet(envName:string, bcName:string):Promise<BoundedContextConfigurationSet | null>;
+    fetchBoundedContextConfigSetVersion(envName:string, bcName:string, version:string):Promise<BoundedContextConfigurationSet | null>;
 }
 
 export interface IGlobalConfigSetRepository {
@@ -48,8 +48,8 @@ export interface IGlobalConfigSetRepository {
     destroy():Promise<void>;
 
     // global config set specific
-    storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<boolean>;
-    fetchGlobalAppConfigSets(envName:string):Promise<GlobalConfigurationSet[]>;
+    storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<void>;
+    fetchGlobalBoundedContextConfigSets(envName:string):Promise<GlobalConfigurationSet[]>;
     fetchLatestGlobalConfigSet(envName:string):Promise<GlobalConfigurationSet | null>;
     fetchGlobalConfigSetVersion(envName:string, version:string):Promise<GlobalConfigurationSet | null>;
 }

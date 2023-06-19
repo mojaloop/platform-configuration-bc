@@ -31,15 +31,11 @@
 "use strict";
 
 export const GLOBALCONFIGSET_URL_RESOURCE_NAME = "globalConfigSets";
-export const APPCONFIGSET_URL_RESOURCE_NAME = "appConfigSets";
+export const BCCONFIGSET_URL_RESOURCE_NAME = "bcConfigSets";
 
-export type ConfigParameterListItem = {
-    id: string;
-    description: string;
-    value: string;
-};
-
-export type ConfigParameterList = ConfigParameterList[];
+/*
+* Configuration items and types
+* */
 
 export enum ConfigParameterTypes {
     "STRING" = "STRING",
@@ -80,6 +76,10 @@ export type ConfigSecret = {
     currentValue: string;
 }
 
+/*
+* ConfigurationSets
+* */
+
 export type ConfigurationSet = {
     environmentName: string;                        // target environment name
     schemaVersion: string;                          // config schema version (semver format)
@@ -89,16 +89,18 @@ export type ConfigurationSet = {
     secrets: ConfigSecret[];                        // secret list
 }
 
-// currently a global config set has no special props
+
 export type GlobalConfigurationSet = ConfigurationSet;
 
-export type AppConfigurationSet = GlobalConfigurationSet & {
+export type BoundedContextConfigurationSet = ConfigurationSet & {
     boundedContextName: string;                     // target bounded context
-    applicationName: string;                        // target application name
-    applicationVersion: string;                     // target app version (semver format)
 }
 
+/*
+* Environment - not used for now
+* */
 
+/*
 export enum EnvironmentType {
     "DEVELOPMENT" = "DEVELOPMENT",
     "TESTING" = "TESTING",
@@ -111,7 +113,7 @@ export type Environment = {
     type:EnvironmentType;
 }
 
-/*
+
 export type ApplicationIdentifier = {
     boundedContextName: string;
     applicationName: string;

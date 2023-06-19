@@ -11,8 +11,8 @@ This library provides a nodejs platform configuration client implementation, to 
 It works in conjunction with the platform configuration central service (check the see also section below).
 
 There are two sets of configurations:
-- **Per application configurations** - with schemas defined by the applications
-- **Global configurations** - with schemas defined centrally by the Platform Configuation BC code
+- **Per bounded context configurations** - with schemas defined by the bounded contexts
+- **Global configurations** - with schemas defined centrally by the Platform Configuration BC code and its config bootstrapper
 
 ## Usage (quick start)
 
@@ -20,82 +20,109 @@ There are two sets of configurations:
 ```typescript
 "use strict"
 
-import {ConfigurationClient, IConfigProvider, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
+import {ConsoleLogger} from "@mojaloop/logging-bc-public-types-lib";
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {IConfigProvider, ConfigurationClient, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
 
 const ENV_NAME = "dev";                                 // Global platform environment name
-const BC_NAME = "my-bounded-context";                   // Bounded context which the App registering the schema belongs to
-const APP_NAME = "my-server-app";                       // Application name that defined the configuration schema
-const APP_VERSION = "0.0.1";                            // Current version of the application owning the schema
-const CONFIGSET_VERSION = "0.0.1";                      // This is the version of the config schema, may differ from the app version that owns it
-const CONFIG_SVC_BASEURL = "http://localhost:3000";     // Base URL of the configuration REST service
+const BC_NAME = "my-bounded-context";                   // Bounded context registering the configuration schema
+const SCHEMA_VERSION = "0.0.1";                         // This is the version of the config schema
+const CONFIG_SVC_BASEURL = "http://localhost:3100";     // Base URL of the configuration REST service
+
+// optional messageConsumer required to enable automatic reloads, triggered by server changes
+const logger = new ConsoleLogger();
+const messageConsumer = new MLKafkaJsonConsumer({kafkaBrokerList: "localhost:9092", kafkaGroupId: "test"}, logger);
 
 // create the default provider instance
-const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL);
+const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL, messageConsumer);
 
-// NOTE: you can skip passing the CONFIG_SVC_BASEURL to the DefaultConfigProvider constructor
+// NOTE: you can skip passing the CONFIG_SVC_BASEURL to the DefaultConfigProvider constructor (or pass null)
 // if the PLATFORM_CONFIG_BASE_SVC_URL env var contains the platform config service base url
 // const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider();
 
 // create the configClient instance, passing the defaultConfigProvider
-const  configClient = new ConfigurationClient(ENV_NAME, BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION, defaultConfigProvider);
+const  configClient = new ConfigurationClient(ENV_NAME, BC_NAME, CONFIGSET_VERSION, defaultConfigProvider);
 
-// Add the parameters your application uses to the configuration schema
-configClient.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1");
-configClient.addNewParam("boolParam1", ConfigParameterTypes.BOOL, true, "description bool param 1");
-configClient.addNewParam("intParam1", ConfigParameterTypes.INT_NUMBER, 42, "description int number param 1");
-configClient.addNewParam("floatParam1", ConfigParameterTypes.FLOAT_NUMBER, 3.1415, "description float number param 1");
+// Add the parameters your Bounded Context uses to the configuration schema
+configClient.bcConfigs.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1");
+configClient.bcConfigs.addNewParam("boolParam1", ConfigParameterTypes.BOOL, true, "description bool param 1");
+configClient.bcConfigs.addNewParam("intParam1", ConfigParameterTypes.INT_NUMBER, 42, "description int number param 1");
+configClient.bcConfigs.addNewParam("floatParam1", ConfigParameterTypes.FLOAT_NUMBER, 3.1415, "description float number param 1");
 
-// Add the feature flags your application uses to the configuration schema
-configClient.addNewFeatureFlag("useBetaFeatureY", false, "description feature flag");
+// Add object param, including JSON Type Definition (JTD) which can be used with OBJECT and LIST param types
+// JTD will be used to validate future value changes, specification here: https://datatracker.ietf.org/doc/rfc8927/
+// Note: For ConfigParameterTypes.LIST, the JTD is the specification for each item, not the entire array
+configClient.bcConfigs.addNewParam(
+    "objParam1",
+    ConfigParameterTypes.OBJECT,
+    {name: "Pedro", age: 46},
+    "description",
+    '{"properties":{"name":{"type":"string"},"age":{"type":"int32"}}}'
+);
 
-// Add the secrets your application uses to the configuration schema
-configClient.addNewSecret("secret1", "password", "description secret 1");
+// Add the feature flags your Bounded Context uses to the configuration schema
+configClient.bcConfigs.addNewFeatureFlag("useBetaFeatureY", false, "description feature flag");
+
+// Add the secrets your Bounded Context uses to the configuration schema
+configClient.bcConfigs.addNewSecret("secret1", "password", "description secret 1");
 ```
 
 
 ### Initialise the client
 (continued from code snippet above)
 ```typescript
-await configClient.init()
+await configClient.init();
 ```
 
 
 ### Bootstrap - send the configuration schema to the central service
 (continued from code snippet above)
 ```typescript
-const bootStrapSuccess = await configClient.bootstrap()
+const bootStrapSuccess = await configClient.bootstrap();
 ```
 
 ### Fetch the current values from the central service
-This will get both the app config schema current values and the global schema current values.
+This will get both the Bounded Context config schema current values and the global schema current values.
 
 (continued from code snippet above)
 ```typescript
 await configClient.fetch();
 ```
 
+#### Hook the change notification mechanism (must instantiate the provider with a messageConsumer)
+(continued from code snippet above)
+```typescript
+configClient.setChangeHandlerFunction((type:"BC"|"GLOBAL") => {
+    console.log("Configurations where changed in the service and have been re-fetched already");
+    if(type==="BC")
+        console.log("  Changes were on this bounded context configuration set");
+    else
+        console.log("  Changes were on the global configuration set");
+});
+```
+
+
 ### After init() and fetch() you can use your configClient instance anywhere you need config values
 
-## Your own application schema values - current version and latest iteration
+## Get your own Bounded Context schema values - current version and latest iteration
 
 ```typescript
-const stringParam1Obj = configClient.appConfigs.getParam("stringParam1");
-const stringParam1: string = stringParam1Obj.currentValue; 
+const stringParam1Obj = configClient.bcConfigs.getParam("stringParam1");
+const stringParam1: string = stringParam1Obj.currentValue;
 
-const boolParam1Obj = configClient.appConfigs.getParam("boolParam1");
+const boolParam1Obj = configClient.bcConfigs.getParam("boolParam1");
 const boolParam1: boolean = boolParam1Obj.currentValue;
 
-const intParam1Obj = configClient.appConfigs.getParam("intParam1");
+const intParam1Obj = configClient.bcConfigs.getParam("intParam1");
 const intParam1: number = intParam1Obj.currentValue;
 
-const floatParam1Obj = configClient.appConfigs.getParam("floatParam1");
+const floatParam1Obj = configClient.bcConfigs.getParam("floatParam1");
 const floatParam1: number = floatParam1Obj.currentValue;
 
-const featureFlag1Obj = configClient.appConfigs.getFeatureFlag("featureFlag1");
+const featureFlag1Obj = configClient.bcConfigs.getFeatureFlag("featureFlag1");
 const featureFlag1: boolean = featureFlag1Obj.currentValue;
 
-const secret1Obj = configClient.appConfigs.getSecret("secret1");
+const secret1Obj = configClient.bcConfigs.getSecret("secret1");
 const secret1: string = secret1Obj.currentValue;
 ```
 
@@ -103,7 +130,7 @@ const secret1: string = secret1Obj.currentValue;
 
 ```typescript
 const globalParam1Obj = configClient.globalConfigs.getParam("globalParam1");
-const strGlobalParam1: string = globalParam1Obj.currentValue; 
+const strGlobalParam1: string = globalParam1Obj.currentValue;
 
 const globalFeatureFlag1Obj = configClient.globalConfigs.getFeatureFlag("globalFeatureFlag1");
 const globalFeatureFlag1: boolean = globalFeatureFlag1Obj.currentValue;
@@ -116,44 +143,33 @@ Note: The `getParam`, `getFeatureFlag` and `getSecret` will return null if the c
 
 You can also request all params, feature flags and secrets, using the `getAllParams`, `getAllFeatureFlags` and `getAllSecrets`, respectively.
 
-### TODO - reacting to platform configuration changes triggered upstream
+### Reacting to platform configuration changes triggered upstream
 
-### Keep the schema app version in sync with you application version 
-
-When your application version increases, make sure to reflect that before creating the ConfigurationClient and executing the bootstrap. 
-
-```typescript
-// create the configClient instance, passing the defaultConfigProvider
-const APP_VERSION = "0.0.2";
-const  configClient = new ConfigurationClient(ENV_NAME, BC_NAME, APP_NAME, APP_VERSION, defaultConfigProvider);
-const bootStrapSuccess = await configClient.bootstrap()
-```
+See example above on how to use ```ConfigurationClient.setChangeHandlerFunction()```
 
 ## How it works
 
-- Applications define a **configuration schema**, which include the configurations items they need the configuration schema version;
+- Bounded contexts define a **configuration schema**, which include the configurations items they need the configuration schema version;
 - This configuration schema is sent to the central service by the client during the **boostrap step**, and stored in the form of a `ConfigurationSet` list;
 - Administrators can change the central values (and trigger change notifications to connected clients);
 - Everytime a change is made in a configuration set, its `iterationNumber` increases by one;
-- Applications can fetch the centrally stored values at startup, on time, or as result of centrally emitted change notification. 
+- Applications can fetch the centrally stored values at startup, on time, or as result of centrally emitted change notification.
 
 In a configuration schema, there are three types of configuration values:
 - **Parameters** - General parameters that can be of type: bool, string, int and float
-- **Feature Flags** - These are boolean values, which can be enabled or disabled 
+- **Feature Flags** - These are boolean values, which can be enabled or disabled
 - **Secrets** - Centrally stored string secret values
 
-All configuration schemas are identified by their owner application, application version, bounded context and execution environment.
+All per bc configuration schemas are identified by their owner bounded context and execution environment.
 All configuration types have a unique name and a description.
 Parameters and Feature Flags have a default value that is provided by the developer (secrets, for security reasons do not have te ability to set a default value).
 
-The per-application configuration schema that is sent to the central service by the client during the boostrap step, called `AppConfigurationSet`, looks like:
+The per bounded context configuration schema that is sent to the central service by the client during the boostrap step, called `BoundedContextConfigurationSet`, looks like:
 ```typescript
-export type AppConfigurationSet = {
+export type BoundedContextConfigurationSet = {
     environmentName: string;                        // target environment name
     boundedContextName: string;                     // target bounded context
-    applicationName: string;                        // target application name
-    applicationVersion: string;                     // target app version (semver format)
-    schemaVersion: string;                          // schema version, may differ from the app version (semver format)
+    schemaVersion: string;                          // schema version (semver format)
     iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
     readonly parameters: ConfigParameter[];         // parameter list
     readonly featureFlags: ConfigFeatureFlag[];     // featureFlag list
@@ -161,9 +177,9 @@ export type AppConfigurationSet = {
 }
 ```
 
-This client library provides an `ConfigurationClient` object that encapsulates both the `AppConfigurationSet` and the `GlobalConfigurationSet`, which deliver all the functionality required by the consuming application.
+This client library provides an `ConfigurationClient` object that encapsulates both the `BoundedContextConfigurationSet` and the `GlobalConfigurationSet`, which deliver all the functionality required by the consuming Bounded Context.
 The `ConfigurationClient` requires an implementation of a `IConfigProvider` in order to interact with the central/remote system. The library provides a default implementation that allows the client to connect to the default central system interface.
-For development only purposes, the client can be instanciated without an `IConfigProvider` implementation - this forces the client to work in a standalone mode, using only locally provided values. 
+For development only purposes, the client can be instantiated without an `IConfigProvider` implementation - this forces the client to work in a standalone mode, using only locally provided values.
 
 ### Load order / precedence
 1. Parameter / FeatureFlag / ~~Secret~~ default values definition when instantiating the `ConfigurationClient`;
@@ -174,28 +190,28 @@ For development only purposes, the client can be instanciated without an `IConfi
 
 ### DefaultProvider configuration via env var
 
-The default implementation of the `ConfigProvider` this library provides, called `DefaultConfigProvider` can be configured via an environment variable, to that end, set the `PLATFORM_CONFIG_BASE_SVC_URL` env var with the value of the central platform configuration service base url and construct the `DefaultConfigProvider` instance without passing a `configSvcBaseUrl`.    
+The default implementation of the `ConfigProvider` this library provides, called `DefaultConfigProvider` can be configured via an environment variable, to that end, set the `PLATFORM_CONFIG_BASE_SVC_URL` env var with the value of the central platform configuration service base url and construct the `DefaultConfigProvider` instance without passing a `configSvcBaseUrl`.
 
 
 ### Overriding with Environment Variables
 
-All configuration values can be overridden locally by defining a configuration value with the following name format: 
-- For local per application config items: `ML_APP_`+`CONFIG_ITEM_NAME_UPPERCASE`
+All configuration values can be overridden locally by defining a configuration value with the following name format:
+- For local per bounded context config items: `ML_BC_`+`CONFIG_ITEM_NAME_UPPERCASE`
 - For global config items: `ML_GLOBAL_`+`CONFIG_ITEM_NAME_UPPERCASE`
 
-#### Example  
+#### Example
 For the following parameter:
 ```
 configClient.addNewParam(
-    "serverBaseUrl", 
-    ConfigParameterTypes.STRING, 
-    "http://localhost:3000", 
+    "serverBaseUrl",
+    ConfigParameterTypes.STRING,
+    "http://localhost:3000",
     "Base URL for the server, including protocol and port"
 );
 ```
 Set the environment variable with corresponding name to override the parameter:
 ```
-export ML_APP_SERVERBASEURL=https://192.168.1.1:443
+export ML_BC_SERVERBASEURL=https://192.168.1.1:443
 ```
 
 ## Standalone mode (for development)
@@ -224,7 +240,7 @@ To install this library use:
 ```shell
 npm install @mojaloop/platform-configuration-bc-client-lib
 
-OR 
+OR
 
 yarn add @mojaloop/platform-configuration-bc-client-lib
 ```

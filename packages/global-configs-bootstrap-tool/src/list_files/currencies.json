@@ -6,5 +6,9 @@
   {
 	"code": "USD",
 	"decimals": 2
+  },
+  {
+	"code": "MMK",
+	"decimals": 2
   }
 ]

@@ -31,9 +31,9 @@
 "use strict";
 import Ajv from "ajv/dist/jtd";
 import semver from "semver";
-import {IAppConfigSetRepository, IGlobalConfigSetRepository} from "./infrastructure_interfaces";
+import {IBoundedContextConfigSetRepository, IGlobalConfigSetRepository} from "./infrastructure_interfaces";
 import {
-    AppConfigurationSet,
+    BoundedContextConfigurationSet,
     ConfigFeatureFlag,
     ConfigItemTypes,
     ConfigParameter,
@@ -43,50 +43,50 @@ import {
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 import {
-    AppConfigurationSetNotFoundError,
+    BoundedContextConfigurationSetNotFoundError,
     CannotCreateDuplicateConfigSetError,
     CannotCreateOverridePreviousVersionConfigSetError,
     CouldNotStoreConfigSetError,
     GlobalConfigurationSetNotFoundError,
-    InvalidAppConfigurationSetError,
+    InvalidBoundedContextConfigurationSetError,
     InvalidGlobalConfigurationSetError,
     OnlyLatestIterationCanBeChangedError,
     OnlyLatestSchemaVersionCanBeChangedError,
     ParameterNotFoundError
 } from "./errors";
-import {AppConfigSetChangeValuesCmdPayload, GlobalConfigSetChangeValuesCmdPayload} from "./commands";
+import {BoundedContextConfigSetChangeValuesCmdPayload, GlobalConfigSetChangeValuesCmdPayload} from "./commands";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {
     PlatformConfigGlobalConfigsChangedEvtPayload,
     PlatformConfigGlobalConfigsChangedEvt,
-    PlatformConfigAppConfigsChangedEvtPayload,
-    PlatformConfigAppConfigsChangedEvt
+    PlatformConfigBoundedContextConfigsChangedEvtPayload,
+    PlatformConfigBoundedContextConfigsChangedEvt
 } from "@mojaloop/platform-shared-lib-public-messages-lib";
 
 enum AuditActions{
     GlobalConfigSet_SchemaVersionCreated = "GlobalConfigSet_SchemaVersionCreated",
     GlobalConfigSet_ValuesChanged = "GlobalConfigSet_ValuesChanged",
-    AppConfigSet_SchemaVersionCreated = "AppConfigSet_SchemaVersionCreated",
-    AppConfigSet_ValuesChanged = "AppConfigSet_ValuesChanged"
+    BoundedContextConfigSet_SchemaVersionCreated = "BoundedContextConfigSet_SchemaVersionCreated",
+    BoundedContextConfigSet_ValuesChanged = "BoundedContextConfigSet_ValuesChanged"
 }
 
 export class ConfigSetAggregate {
     private readonly _logger: ILogger;
-    private readonly _appConfigSetRepo:IAppConfigSetRepository;
+    private readonly _bcConfigSetRepo:IBoundedContextConfigSetRepository;
     private readonly _globalConfigSetRepo:IGlobalConfigSetRepository;
     private readonly _auditClient:IAuditClient;
     private readonly _messageProducer:IMessageProducer;
     private readonly _ajv: Ajv;
 
     constructor(
-        appConfigSetRepo:IAppConfigSetRepository,
+        bcConfigSetRepo:IBoundedContextConfigSetRepository,
         globalConfigSetRepo:IGlobalConfigSetRepository,
         auditClient:IAuditClient,
         messageProducer:IMessageProducer,
         logger: ILogger
     ) {
-        this._appConfigSetRepo = appConfigSetRepo;
+        this._bcConfigSetRepo = bcConfigSetRepo;
         this._globalConfigSetRepo = globalConfigSetRepo;
         this._logger = logger;
         this._auditClient = auditClient;
@@ -99,8 +99,8 @@ export class ConfigSetAggregate {
         return this._notifyNewValues_globalConfigs(globalConfigSet);
     }
 
-    private async _notifyNewSchema_appConfigs(appConfigSet:AppConfigurationSet){
-        return this._notifyNewValues_appConfigs(appConfigSet);
+    private async _notifyNewSchema_bcConfigs(bcConfigSet:BoundedContextConfigurationSet){
+        return this._notifyNewValues_bcConfigs(bcConfigSet);
     }
 
     private async _notifyNewValues_globalConfigs(globalConfigSet:GlobalConfigurationSet){
@@ -113,16 +113,14 @@ export class ConfigSetAggregate {
         await this._messageProducer.send(evt);
     }
 
-    private async _notifyNewValues_appConfigs(appConfigSet:AppConfigurationSet){
-        const payload:PlatformConfigAppConfigsChangedEvtPayload = {
-            environmentName: appConfigSet.environmentName,
-            schemaVersion: appConfigSet.schemaVersion,
-            iterationNumber: appConfigSet.iterationNumber,
-            boundedContextName: appConfigSet.boundedContextName,
-            applicationName: appConfigSet.applicationName,
-            applicationVersion: appConfigSet.applicationVersion
+    private async _notifyNewValues_bcConfigs(bcConfigSet:BoundedContextConfigurationSet){
+        const payload:PlatformConfigBoundedContextConfigsChangedEvtPayload = {
+            environmentName: bcConfigSet.environmentName,
+            schemaVersion: bcConfigSet.schemaVersion,
+            iterationNumber: bcConfigSet.iterationNumber,
+            boundedContextName: bcConfigSet.boundedContextName
         };
-        const evt = new PlatformConfigAppConfigsChangedEvt(payload);
+        const evt = new PlatformConfigBoundedContextConfigsChangedEvt(payload);
         await this._messageProducer.send(evt);
     }
 
@@ -204,32 +202,28 @@ export class ConfigSetAggregate {
     }
 
     /**************************************
-     * App config set code
+     * BoundedContext config set code
      ************************************/
 
-    private _validateAppConfigSet(appConfigSet:AppConfigurationSet):boolean{
-        if(!appConfigSet.environmentName
-                || !appConfigSet.applicationName
-                || !appConfigSet.boundedContextName
-                || !appConfigSet.applicationVersion) {
+    private _validateBoundedContextConfigSet(bcConfigSet:BoundedContextConfigurationSet):boolean{
+        if(!bcConfigSet.environmentName  || !bcConfigSet.boundedContextName) {
             return false;
         }
 
-        if(!appConfigSet.parameters || !appConfigSet.featureFlags || !appConfigSet.secrets){
+        if(!bcConfigSet.parameters || !bcConfigSet.featureFlags || !bcConfigSet.secrets){
             return false;
         }
 
-        if(!Array.isArray(appConfigSet.parameters)
-            || !Array.isArray(appConfigSet.featureFlags)
-            || !Array.isArray(appConfigSet.secrets)){
+        if(!Array.isArray(bcConfigSet.parameters)
+            || !Array.isArray(bcConfigSet.featureFlags)
+            || !Array.isArray(bcConfigSet.secrets)){
             return false;
         }
 
-        if(!appConfigSet.applicationVersion || typeof(appConfigSet.applicationVersion) !== "string"){
-            return false;
-        }
-        const parsed = semver.coerce(appConfigSet.applicationVersion);
-        if(!parsed || parsed.raw != appConfigSet.applicationVersion) {
+
+        // detect differences - 0.2 should be different from the coerced 0.2.0 and invalid input
+        const parsed = semver.coerce(bcConfigSet.schemaVersion);
+        if(!parsed || parsed.raw != bcConfigSet.schemaVersion) {
             // the 2nd check assures that formats like "v1.0.1" which are considered valid by semver are rejected, we want strict semver
             return false;
         }
@@ -237,52 +231,70 @@ export class ConfigSetAggregate {
         return true;
     }
 
-    async getAllAppConfigSets(envName:string):Promise<AppConfigurationSet[]>{
-        const allVersions: AppConfigurationSet [] = await this._appConfigSetRepo.fetchAllAppConfigSets(envName);
-        return allVersions;
+    async getAllBoundedContextConfigSets(envName:string):Promise<BoundedContextConfigurationSet[]>{
+        try {
+            const allVersions: BoundedContextConfigurationSet [] = await this._bcConfigSetRepo.fetchAllBoundedContextConfigSets(envName);
+            return allVersions;
+        }catch(err){
+            this._logger.error(err);
+            return [];
+        }
     }
 
-    async getLatestAppConfigSet(envName:string, bcName: string, appName: string):Promise<AppConfigurationSet | null>{
-        const latestVersion: AppConfigurationSet | null = await this._appConfigSetRepo.fetchLatestAppConfigSet(envName, bcName, appName);
-        return latestVersion;
-    }
-
-    async getAppConfigSetVersion(envName:string, bcName: string, appName: string, version:string):Promise<AppConfigurationSet | null>{
-        const specificVersion: AppConfigurationSet | null = await this._appConfigSetRepo.fetchAppConfigSetVersion(envName, bcName, appName, version);
-
-        return specificVersion;
-    }
-
-    async processCreateAppConfigSetCmd(appConfigSet:AppConfigurationSet):Promise<void>{
-        // TODO validate the configSet
-        if(!this._validateAppConfigSet(appConfigSet)){
-            this._logger.warn(`invalid app configuration set for BC: ${appConfigSet?.boundedContextName}, APP: ${appConfigSet?.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet?.iterationNumber}, ERROR `);
-            throw new InvalidAppConfigurationSetError();
+    async getLatestBoundedContextConfigSet(envName:string, bcName: string):Promise<BoundedContextConfigurationSet | null>{
+        try {
+            const latestVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchLatestBoundedContextConfigSet(envName, bcName);
+            return latestVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
         }
 
-        const latestVersion: AppConfigurationSet | null = await this._appConfigSetRepo.fetchLatestAppConfigSet(appConfigSet.environmentName, appConfigSet.boundedContextName, appConfigSet.applicationName);
+    }
+
+    async getBoundedContextConfigSetVersion(envName:string, bcName: string, version:string):Promise<BoundedContextConfigurationSet | null>{
+        try {
+            const specificVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchBoundedContextConfigSetVersion(envName, bcName, version);
+            return specificVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
+        }
+    }
+
+    async processCreateBoundedContextConfigSetCmd(bcConfigSet:BoundedContextConfigurationSet):Promise<void>{
+        // TODO validate the configSet
+        if(!this._validateBoundedContextConfigSet(bcConfigSet)){
+            this._logger.warn(`invalid BC configuration set for BC: ${bcConfigSet?.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iterationNumber: ${bcConfigSet?.iterationNumber}, ERROR `);
+            throw new InvalidBoundedContextConfigurationSetError();
+        }
+
+        const latestVersion: BoundedContextConfigurationSet | null = await this.getLatestBoundedContextConfigSet(bcConfigSet.environmentName, bcConfigSet.boundedContextName);
 
         if(latestVersion) {
-            if (semver.compare(latestVersion.applicationVersion, appConfigSet.applicationVersion)==0) {
-                this._logger.warn(`received duplicate app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING `);
-                throw new CannotCreateDuplicateConfigSetError();
-            } else if (semver.compare(latestVersion.applicationVersion, appConfigSet.applicationVersion)==1) {
-                this._logger.error(`received app configuration set with lower version than latest for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName}appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}, IGNORING with error`);
-                throw new CannotCreateOverridePreviousVersionConfigSetError();
+            if (semver.compare(latestVersion.schemaVersion, bcConfigSet.schemaVersion)==0) {
+                this._logger.warn(`received duplicate BC configuration set for BC: ${bcConfigSet.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iterationNumber: ${bcConfigSet.iterationNumber}, IGNORING `);
+                throw new CannotCreateDuplicateConfigSetError("Duplicate schemaVersion");
+            } else if (semver.compare(latestVersion.schemaVersion, bcConfigSet.schemaVersion)==1) {
+                this._logger.error(`received BC configuration set with lower version than latest for BC: ${bcConfigSet.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iterationNumber: ${bcConfigSet.iterationNumber}, IGNORING with error`);
+                throw new CannotCreateOverridePreviousVersionConfigSetError("Invalid schemaVersion");
             }
         }
 
         //apply default values - if creating a new version, the current values should be copied from the old version
-        this._applyCurrentOrDefaultParamValues(appConfigSet.parameters, latestVersion ? latestVersion.parameters : null);
-        this._applyCurrentOrDefaultFeatureFlagValues(appConfigSet.featureFlags, latestVersion ? latestVersion.featureFlags : null);
-        this._applyCurrentOrDefaultSecretValues(appConfigSet.secrets, latestVersion ? latestVersion.secrets : null);
+        this._applyCurrentOrDefaultParamValues(bcConfigSet.parameters, latestVersion ? latestVersion.parameters : null);
+        this._applyCurrentOrDefaultFeatureFlagValues(bcConfigSet.featureFlags, latestVersion ? latestVersion.featureFlags : null);
+        this._applyCurrentOrDefaultSecretValues(bcConfigSet.secrets, latestVersion ? latestVersion.secrets : null);
 
         // new configsets get 0 iterationNumber, newer versions of existing ones continue from the previous
-        appConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
+        bcConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
-        this._logger.info(`received app configuration set for BC: ${appConfigSet.boundedContextName}, APP: ${appConfigSet.applicationName} appVersion: ${appConfigSet.applicationVersion} schemaVersion: ${appConfigSet.schemaVersion} and iterationNumber: ${appConfigSet.iterationNumber}`);
-        const stored = await this._appConfigSetRepo.storeAppConfigSet(appConfigSet);
-        if(!stored){
+        this._logger.info(`received BC configuration set for BC: ${bcConfigSet.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iterationNumber: ${bcConfigSet.iterationNumber}`);
+
+        try{
+            await this._bcConfigSetRepo.storeBoundedContextConfigSet(bcConfigSet);
+        }catch(err){
+            this._logger.error(err);
             throw new CouldNotStoreConfigSetError();
         }
 
@@ -292,23 +304,23 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit(AuditActions.AppConfigSet_SchemaVersionCreated, true);
+        await this._auditClient.audit(AuditActions.BoundedContextConfigSet_SchemaVersionCreated, true);
 
-        await this._notifyNewSchema_appConfigs(appConfigSet);
+        await this._notifyNewSchema_bcConfigs(bcConfigSet);
     }
 
-    async processChangeAppConfigSetValuesCmd(cmdPayload: AppConfigSetChangeValuesCmdPayload):Promise<void> {
-        const appConfigSet = await this.getLatestAppConfigSet(cmdPayload.environmentName, cmdPayload.boundedContextName, cmdPayload.applicationName);
+    async processChangeBoundedContextConfigSetValuesCmd(cmdPayload: BoundedContextConfigSetChangeValuesCmdPayload):Promise<void> {
+        const bcConfigSet = await this.getLatestBoundedContextConfigSet(cmdPayload.environmentName, cmdPayload.boundedContextName);
 
-        if(!appConfigSet){
-            return Promise.reject(new AppConfigurationSetNotFoundError());
+        if(!bcConfigSet){
+            return Promise.reject(new BoundedContextConfigurationSetNotFoundError());
         }
 
-        if (cmdPayload.schemaVersion !== appConfigSet.schemaVersion){
+        if (cmdPayload.schemaVersion !== bcConfigSet.schemaVersion){
             return Promise.reject(new OnlyLatestSchemaVersionCanBeChangedError());
         }
 
-        if (cmdPayload.iteration !== appConfigSet.iterationNumber){
+        if (cmdPayload.iterationNumber !== bcConfigSet.iterationNumber){
             return Promise.reject(new OnlyLatestIterationCanBeChangedError());
         }
 
@@ -316,19 +328,19 @@ export class ConfigSetAggregate {
 
         cmdPayload.newValues.forEach((value) => {
             if(value.type.toUpperCase() === ConfigItemTypes.PARAMETER){
-                const param = appConfigSet!.parameters.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                const param = bcConfigSet!.parameters.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!param){
                     throw new ParameterNotFoundError();
                 }
                 param.currentValue = value.value;
             }else if(value.type.toUpperCase() === ConfigItemTypes.FEATUREFLAG){
-                const featureFlag = appConfigSet!.featureFlags.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                const featureFlag = bcConfigSet!.featureFlags.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!featureFlag){
                     throw new ParameterNotFoundError();
                 }
                 featureFlag.currentValue = value.value as boolean;
             }else if(value.type.toUpperCase() === ConfigItemTypes.SECRET){
-                const secret = appConfigSet!.secrets.find(item => item.name.toUpperCase() === value.name.toUpperCase());
+                const secret = bcConfigSet!.secrets.find(item => item.name.toUpperCase() === value.name.toUpperCase());
                 if(!secret){
                     throw new ParameterNotFoundError();
                 }
@@ -339,9 +351,12 @@ export class ConfigSetAggregate {
             return;
         });
 
-        appConfigSet.iterationNumber++;
-        const stored = await this._appConfigSetRepo.storeAppConfigSet(appConfigSet);
-        if(!stored){
+        bcConfigSet.iterationNumber++;
+
+        try{
+            await this._bcConfigSetRepo.storeBoundedContextConfigSet(bcConfigSet);
+        }catch(err){
+            this._logger.error(err);
             throw new CouldNotStoreConfigSetError();
         }
 
@@ -351,9 +366,9 @@ export class ConfigSetAggregate {
         //     appId: null,
         //     role: "role"
         // }
-        await this._auditClient.audit(AuditActions.AppConfigSet_ValuesChanged, true);
+        await this._auditClient.audit(AuditActions.BoundedContextConfigSet_ValuesChanged, true);
 
-        await this._notifyNewValues_appConfigs(appConfigSet);
+        await this._notifyNewValues_bcConfigs(bcConfigSet);
     }
 
     /**************************************
@@ -378,7 +393,15 @@ export class ConfigSetAggregate {
         if(!globalConfigSet.schemaVersion || typeof(globalConfigSet.schemaVersion) !== "string"){
             return false;
         }
-        const parsed = semver.coerce(globalConfigSet.schemaVersion);
+
+        // detect differences - 0.2 should be different from the coerced 0.2.0 and invalid input
+        let parsed = semver.coerce(globalConfigSet.schemaVersion);
+        if(!parsed || parsed.raw != globalConfigSet.schemaVersion) {
+            // the 2nd check assures that formats like "v1.0.1" which are considered valid by semver are rejected, we want strict semver
+            return false;
+        }
+
+        parsed = semver.coerce(globalConfigSet.schemaVersion);
         if(!parsed || parsed.raw != globalConfigSet.schemaVersion) {
             // the 2nd check assures that formats like "v1.0.1" which are considered valid by semver are rejected, we want strict semver
             return false;
@@ -388,18 +411,33 @@ export class ConfigSetAggregate {
     }
 
     async getAllGlobalConfigSets(envName:string): Promise<GlobalConfigurationSet[]>{
-        const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalAppConfigSets(envName);
-        return allVersions;
+        try{
+            const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalBoundedContextConfigSets(envName);
+            return allVersions;
+        }catch(err){
+            this._logger.error(err);
+            return [];
+        }
     }
 
     async getGlobalConfigSetVersion(envName:string, version:string): Promise<GlobalConfigurationSet | null>{
-        const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(envName, version);
-        return latestVersion;
+        try{
+            const specificVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(envName, version);
+            return specificVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
+        }
     }
 
     async getLatestGlobalConfigSet(envName:string): Promise<GlobalConfigurationSet | null>{
-        const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(envName);
-        return latestVersion;
+        try{
+            const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(envName);
+            return latestVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
+        }
     }
 
     async processCreateGlobalConfigSetCmd(globalConfigSet:GlobalConfigurationSet):Promise<void>{
@@ -409,7 +447,7 @@ export class ConfigSetAggregate {
             throw new InvalidGlobalConfigurationSetError();
         }
 
-        const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(globalConfigSet.environmentName);
+        const latestVersion: GlobalConfigurationSet | null = await this.getLatestGlobalConfigSet(globalConfigSet.environmentName);
 
         if(latestVersion) {
             if (semver.compare(latestVersion.schemaVersion, globalConfigSet.schemaVersion)==0) {
@@ -439,8 +477,11 @@ export class ConfigSetAggregate {
         globalConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
         this._logger.info(`received configuration set for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}`);
-        const stored = await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
-        if(!stored){
+
+        try{
+            await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
+        }catch(err){
+            this._logger.error(err);
             throw new CouldNotStoreConfigSetError();
         }
 
@@ -466,7 +507,7 @@ export class ConfigSetAggregate {
             return Promise.reject(new OnlyLatestSchemaVersionCanBeChangedError());
         }
 
-        if (cmdPayload.iteration !== globalConfigSet.iterationNumber){
+        if (cmdPayload.iterationNumber !== globalConfigSet.iterationNumber){
             return Promise.reject(new OnlyLatestIterationCanBeChangedError());
         }
 
@@ -498,8 +539,11 @@ export class ConfigSetAggregate {
         });
 
         globalConfigSet.iterationNumber++;
-        const stored = await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
-        if(!stored){
+
+        try{
+            await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
+        }catch(err){
+            this._logger.error(err);
             throw new CouldNotStoreConfigSetError();
         }
 

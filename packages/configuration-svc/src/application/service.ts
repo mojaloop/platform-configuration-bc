@@ -31,6 +31,7 @@
 "use strict";
 import {existsSync} from "fs";
 import express, {Express} from "express";
+import * as util from "util";
 import {Server} from "net";
 import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
 import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
@@ -38,7 +39,7 @@ import process from "process";
 import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
 import {
     ConfigSetAggregate,
-    IAppConfigSetRepository,
+    IBoundedContextConfigSetRepository,
     IGlobalConfigSetRepository
 } from "@mojaloop/platform-configuration-bc-domain-lib";
 import {
@@ -47,11 +48,12 @@ import {
     LocalAuditClientCryptoProvider
 } from "@mojaloop/auditing-bc-client-lib";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
-import {AppConfigsRoutes} from "./appconfigs_routes";
+import {BoundedContextConfigsRoutes} from "./bcconfigs_routes";
 import {GlobalConfigsRoutes} from "./globalconfigs_routes";
-import {GLOBALCONFIGSET_URL_RESOURCE_NAME, APPCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {GLOBALCONFIGSET_URL_RESOURCE_NAME, BCCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {MLKafkaJsonProducer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
+
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
 const APP_VERSION = process.env.npm_package_version || "0.0.1";
@@ -78,7 +80,7 @@ export class Service {
     static logger: ILogger;
     static app: Express;
     static auditClient: IAuditClient;
-    static appConfigRepo:IAppConfigSetRepository;
+    static bcConfigRepo:IBoundedContextConfigSetRepository;
     static globalConfigRepo:IGlobalConfigSetRepository;
     static messageProducer: IMessageProducer;
     static aggregate:ConfigSetAggregate;
@@ -87,7 +89,7 @@ export class Service {
     static async start(
         logger?: ILogger,
         auditClient?:IAuditClient,
-        appConfigRepo?:IAppConfigSetRepository,
+        bcConfigRepo?:IBoundedContextConfigSetRepository,
         globalConfigRepo?:IGlobalConfigSetRepository,
         messageProducer?: IMessageProducer
     ):Promise<void>{
@@ -124,11 +126,11 @@ export class Service {
         this.auditClient = auditClient;
 
 
-        if(!appConfigRepo || !globalConfigRepo){
-            globalConfigRepo = appConfigRepo  = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
-            await appConfigRepo.init();
+        if(!bcConfigRepo || !globalConfigRepo){
+            globalConfigRepo = bcConfigRepo  = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
+            await bcConfigRepo.init();
         }
-        this.appConfigRepo = appConfigRepo;
+        this.bcConfigRepo = bcConfigRepo;
         this.globalConfigRepo = globalConfigRepo;
 
         if (!messageProducer) {
@@ -141,7 +143,7 @@ export class Service {
 
 
         this.aggregate = new ConfigSetAggregate(
-            this.appConfigRepo,
+            this.bcConfigRepo,
             this.globalConfigRepo,
             this.auditClient,
             this.messageProducer,
@@ -159,10 +161,10 @@ export class Service {
             this.app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
 
             const globalConfigsRoutes = new GlobalConfigsRoutes(this.aggregate, this.logger);
-            const appConfigsRoutes = new AppConfigsRoutes(this.aggregate, this.logger);
+            const bcConfigsRoutes = new BoundedContextConfigsRoutes(this.aggregate, this.logger);
 
             this.app.use(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}`, globalConfigsRoutes.Router);
-            this.app.use(`/${APPCONFIGSET_URL_RESOURCE_NAME}`, appConfigsRoutes.Router);
+            this.app.use(`/${BCCONFIGSET_URL_RESOURCE_NAME}`, bcConfigsRoutes.Router);
 
             this.app.use((req: express.Request, res: express.Response) => {
                 // catch all
@@ -187,11 +189,13 @@ export class Service {
     static async stop() {
         if (this.auditClient) await this.auditClient.destroy();
         if (this.messageProducer) await this.messageProducer.destroy();
-        if (this.appConfigRepo) await this.appConfigRepo.destroy();
+        if (this.bcConfigRepo) await this.bcConfigRepo.destroy();
         if (this.globalConfigRepo) await this.globalConfigRepo.destroy();
 
-        if (this.expressServer) await this.expressServer.close();
         if (this.logger && this.logger instanceof KafkaLogger) await this.logger.destroy();
+
+        const expressClose = util.promisify(this.expressServer.close);
+        if (this.expressServer) await expressClose();
     }
 }
 
@@ -220,7 +224,7 @@ process.on("SIGINT", _handle_int_and_term_signals);
 //catches program termination event
 process.on("SIGTERM", _handle_int_and_term_signals);
 
-//do something when app is closing
+//do something when BC is closing
 process.on("exit", async () => {
     globalLogger.info("Microservice - exiting...");
 });

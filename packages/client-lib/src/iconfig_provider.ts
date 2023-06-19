@@ -30,15 +30,15 @@
 
 "use strict";
 
-import {AppConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
-import {DomainEventMsg, IMessage} from "@mojaloop/platform-shared-lib-messaging-types-lib";
+import {BoundedContextConfigurationSet, GlobalConfigurationSet} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {DomainEventMsg} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 
 export interface IConfigProvider {
   init(): Promise<boolean>;
   destroy(): Promise<void>;
-  boostrapAppConfigs(configSetDto:AppConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
+  boostrapBoundedContextConfigs(configSetDto:BoundedContextConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
 
-  fetchAppConfigs(envName:string, bcName:string, appName:string, appVersion:string): Promise<AppConfigurationSet | null>;
+  fetchBoundedContextConfigs(envName:string, bcName:string, appVersion:string): Promise<BoundedContextConfigurationSet | null>;
 
   fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>
 

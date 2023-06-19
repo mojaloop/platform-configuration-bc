@@ -27,7 +27,6 @@
 
  --------------
  ******/
-
 "use strict";
 
 import {
@@ -36,19 +35,21 @@ import {
     ConfigParameterTypes,
     ConfigSecret,
     ConfigurationSet,
-    IAppConfiguration, IGlobalConfiguration
+    Currency,
+    GLOBAL_FIXED_PARAMETERS_DEFINITION,
+    IBaseConfigurationClient,
+    IBoundedContextConfigurationClient,
+    IGlobalConfigurationClient
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 
+export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
+    protected _environmentName: string;
+    protected _schemaVersion: string;
+    protected _iterationNumber: number;
 
-
-export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfiguration{
-    private _environmentName: string;
-    private _schemaVersion: string;
-    private _iterationNumber: number;
-
-    private readonly _parameters: Map<string, ConfigParameter>;
-    private readonly _featureFlags: Map<string, ConfigFeatureFlag>;
-    private readonly _secrets: Map<string, ConfigSecret>;
+    protected readonly _parameters: Map<string, ConfigParameter>;
+    protected readonly _featureFlags: Map<string, ConfigFeatureFlag>;
+    protected readonly _secrets: Map<string, ConfigSecret>;
 
     constructor(environmentName: string, schemaVersion?:string) {
         this._environmentName = environmentName;
@@ -114,17 +115,6 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         }
     }
 
-    public ToJsonObj():ConfigurationSet{
-        return {
-            environmentName: this._environmentName,
-            schemaVersion: this._schemaVersion,
-            iterationNumber: this._iterationNumber,
-            parameters: Array.from(this._parameters.values()),
-            featureFlags: Array.from(this._featureFlags.values()),
-            secrets: Array.from(this._secrets.values())
-        };
-    }
-
     /**
      * Note: this does not enforce matching env or schemaVersion
      * @param data
@@ -141,26 +131,46 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._secrets.clear();
 
         for(const param of data.parameters){
-            this.addNewParam(param.name, param.type, param.defaultValue, param.description);
+            this._addNewParam(param.name, param.type, param.defaultValue, param.description);
             this._setParamValue(param.name, param.currentValue);
         }
 
         for(const featureFlag of data.featureFlags){
-            this.addNewFeatureFlag(featureFlag.name, featureFlag.defaultValue, featureFlag.description);
+            this._addNewFeatureFlag(featureFlag.name, featureFlag.defaultValue, featureFlag.description);
             this._setFeatureFlagValue(featureFlag.name, featureFlag.currentValue);
         }
 
         for(const secret of data.secrets){
-            this.addNewSecret(secret.name, secret.defaultValue, secret.description);
+            this._addNewSecret(secret.name, secret.defaultValue, secret.description);
             this._setSecretValue(secret.name, secret.currentValue);
         }
+    }
+
+    public ToJsonObj():ConfigurationSet{
+        return {
+            environmentName: this._environmentName,
+            schemaVersion: this._schemaVersion,
+            iterationNumber: this._iterationNumber,
+            parameters: Array.from(this._parameters.values()),
+            featureFlags: Array.from(this._featureFlags.values()),
+            secrets: Array.from(this._secrets.values())
+        };
     }
 
     /*************************
      * params
      **************************/
 
-    addParam(param: ConfigParameter): void {
+
+    getParam(paramName: string): ConfigParameter | null {
+        return this._parameters.get(paramName.toUpperCase()) ?? null;
+    }
+
+    getAllParams(): ConfigParameter[] {
+        return Array.from(this._parameters.values());
+    }
+
+    protected _addParam(param: ConfigParameter): void {
         if (this.has(param.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${param.name}`);
         }
@@ -168,7 +178,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._parameters.set(param.name.toUpperCase(), param);
     }
 
-    addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string): void {
+    protected _addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string, jsonSchema?: string): void {
         const param:ConfigParameter = {
             name: name,
             type: type,
@@ -176,6 +186,11 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
             description: description,
             currentValue: defaultValue
         };
+
+        // jsonSchema only for LIST and OBJECT
+        if(jsonSchema && (type === ConfigParameterTypes.LIST || type === ConfigParameterTypes.OBJECT)){
+            param.jsonSchema = jsonSchema;
+        }
 
         // TODO validate
 
@@ -186,15 +201,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._parameters.set(param.name.toUpperCase(), param);
     }
 
-    getParam(paramName: string): ConfigParameter | null {
-        return this._parameters.get(paramName.toUpperCase()) ?? null;
-    }
-
-    getAllParams(): ConfigParameter[] {
-        return Array.from(this._parameters.values());
-    }
-
-    private _getParamValueFromString(param: ConfigParameter, value:string):any {
+    protected _getParamValueFromString(param: ConfigParameter, value:string):any {
         if(param.type === ConfigParameterTypes.STRING){
             return value;
         }else if(param.type === ConfigParameterTypes.BOOL){
@@ -206,7 +213,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         }
     }
 
-    private _setParamValue(paramName:string, value:any):void{
+    protected _setParamValue(paramName:string, value:any):void{
         const param: ConfigParameter | null = this._parameters.get(paramName.toUpperCase()) ?? null;
         if(!param) {
             throw("param does not exit, cannot set value");
@@ -219,7 +226,15 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
      * feature flags
      **************************/
 
-    addFeatureFlag(featureFlag: ConfigFeatureFlag): void {
+    getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null {
+        return this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
+    }
+
+    getAllFeatureFlags(): ConfigFeatureFlag[] {
+        return Array.from(this._featureFlags.values());
+    }
+
+    protected _addFeatureFlag(featureFlag: ConfigFeatureFlag): void {
         if (this.has(featureFlag.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${featureFlag.name}`);
         }
@@ -227,7 +242,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._featureFlags.set(featureFlag.name.toUpperCase(), featureFlag);
     }
 
-    addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void {
+    protected _addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void {
         const featureFlag:ConfigFeatureFlag = {
             name: name,
             defaultValue: defaultValue,
@@ -241,15 +256,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._featureFlags.set(featureFlag.name.toUpperCase(), featureFlag);
     }
 
-    getFeatureFlag(featureFlagName: string): ConfigFeatureFlag | null {
-        return this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
-    }
-
-    getAllFeatureFlags(): ConfigFeatureFlag[] {
-        return Array.from(this._featureFlags.values());
-    }
-
-    private _setFeatureFlagValue(featureFlagName:string, value:boolean):void{
+    protected _setFeatureFlagValue(featureFlagName:string, value:boolean):void{
         const featureFlag: ConfigFeatureFlag | null = this._featureFlags.get(featureFlagName.toUpperCase()) ?? null;
         if(!featureFlag) {
             throw("featureFlag does not exit, cannot set value");
@@ -262,7 +269,15 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
      * secrets
      **************************/
 
-    addSecret(secret: ConfigSecret): void {
+    getSecret(secretName: string): ConfigSecret | null {
+        return this._secrets.get(secretName.toUpperCase()) ?? null;
+    }
+
+    getAllSecrets(): ConfigSecret[] {
+        return Array.from(this._secrets.values());
+    }
+
+    protected _addSecret(secret: ConfigSecret): void {
         if (this.has(secret.name.toUpperCase())) {
             throw new Error(`Duplicate config name detected - name: ${secret.name}`);
         }
@@ -270,7 +285,7 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._secrets.set(secret.name.toUpperCase(), secret);
     }
 
-    addNewSecret(name: string, defaultValue: string | null, description: string): void {
+    protected _addNewSecret(name: string, defaultValue: string | null, description: string): void {
         const secret:ConfigSecret = {
             name: name,
             defaultValue: defaultValue,
@@ -285,20 +300,75 @@ export class ConfigurationSetWrapper implements IAppConfiguration, IGlobalConfig
         this._secrets.set(secret.name.toUpperCase(), secret);
     }
 
-    getSecret(secretName: string): ConfigSecret | null {
-        return this._secrets.get(secretName.toUpperCase()) ?? null;
-    }
-
-    getAllSecrets(): ConfigSecret[] {
-        return Array.from(this._secrets.values());
-    }
-
-    private _setSecretValue(secretName:string, value:string):void{
+    protected _setSecretValue(secretName:string, value:string):void{
         const secret: ConfigSecret | null = this._secrets.get(secretName.toUpperCase()) ?? null;
         if(!secret) {
             throw("secret does not exit, cannot set value");
         }
 
         secret.currentValue = value;
+    }
+}
+
+
+export class BCConfigurationSetWrapper extends BaseConfigurationSetWrapper implements IBoundedContextConfigurationClient{
+    constructor(environmentName: string, schemaVersion?:string) {
+        super(environmentName, schemaVersion);
+    }
+
+    /*************************
+     * params - public change methods
+     **************************/
+
+    addParam(param: ConfigParameter): void {
+        this._addParam(param);
+    }
+
+    addNewParam(name: string, type: ConfigParameterTypes, defaultValue: any, description: string, jsonSchema?: string): void {
+        this._addNewParam(name, type, defaultValue, description, jsonSchema);
+    }
+
+    /*************************
+     * feature flags - public change methods
+     **************************/
+
+    addFeatureFlag(featureFlag: ConfigFeatureFlag): void {
+        this._addFeatureFlag(featureFlag);
+    }
+
+    addNewFeatureFlag(name: string, defaultValue: boolean, description: string): void {
+        this._addNewFeatureFlag(name, defaultValue, description);
+    }
+
+    /*************************
+     * secrets - public change methods
+     **************************/
+
+    addSecret(secret: ConfigSecret): void {
+        this._addSecret(secret);
+    }
+
+    addNewSecret(name: string, defaultValue: string | null, description: string): void {
+        this._addNewSecret(name, defaultValue, description);
+    }
+}
+
+
+export class GlobalConfigurationSetWrapper extends BaseConfigurationSetWrapper implements IGlobalConfigurationClient{
+    constructor(environmentName: string) {
+        super(environmentName);
+    }
+
+    /*************************
+     * params - public change methods
+     **************************/
+
+    getCurrencies(): Currency[] {
+        const param = this.getParam(GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.name);
+        if(!param){
+            throw new Error(`Fixed global param '${GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.name}' not found`);
+        }
+
+        return param.currentValue as Currency[];
     }
 }

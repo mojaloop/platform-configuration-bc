@@ -32,3 +32,4 @@
 
 export * from "./general_config_types";
 export * from "./configuration_client";
+export * from "./global_fixed_params";

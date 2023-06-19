@@ -6,7 +6,7 @@ let packageName = name.replace("@mojaloop", "") || "unknown_package_name";
 module.exports = {
 	preset: "ts-jest",
 	testEnvironment: "node",
-	testMatch: ["**/test/unit/**/*.test.ts"],
+	testMatch: ["**/test/unit/**/*.test.js"],
 	passWithNoTests: true,
 	collectCoverage: true,
 	collectCoverageFrom: ["./src/**/*.ts"],

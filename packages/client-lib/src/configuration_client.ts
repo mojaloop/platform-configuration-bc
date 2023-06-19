@@ -32,51 +32,46 @@
 
 import process from "process";
 import {IConfigProvider} from "./iconfig_provider";
-import {ConfigurationSetWrapper} from "./configurationset_wrapper";
+import {BCConfigurationSetWrapper, GlobalConfigurationSetWrapper} from "./configurationset_wrappers";
 
 import {
-    AppConfigurationSet,
-    GlobalConfigurationSet,
-    IAppConfiguration,
-    IConfigurationClient,
-    IGlobalConfiguration
+    BoundedContextConfigurationSet,
+    GlobalConfigurationSet, IBoundedContextConfigurationClient,
+    IConfigurationClient, IGlobalConfigurationClient,
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {DomainEventMsg} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {
-    PlatformConfigAppConfigsChangedEvt,
+    PlatformConfigBoundedContextConfigsChangedEvt,
     PlatformConfigGlobalConfigsChangedEvt
 } from "@mojaloop/platform-shared-lib-public-messages-lib";
 
 // name of the env var that if present disables remote fetch (uses only env vars or defaults)
 const STANDALONE_ENV_VAR_NAME = "PLATFORM_CONFIG_STANDALONE";
-const ENV_VAR_APP_OVERRIDE_PREFIX = "ML_APP_";
+const ENV_VAR_BC_OVERRIDE_PREFIX = "ML_BC_";
 const ENV_VAR_GLOBAL_OVERRIDE_PREFIX = "ML_GLOBAL_";
 
 export class ConfigurationClient implements IConfigurationClient{
     private readonly _configProvider:IConfigProvider | null;
     private readonly _environmentName: string;
     private readonly _boundedContextName: string;
-    private readonly _applicationName: string;
-    private readonly _applicationVersion: string;
     private readonly _standAloneMode: boolean = false;
-    private readonly _appConfigs:ConfigurationSetWrapper;
-    private readonly _globalConfigs:ConfigurationSetWrapper;
-    private _changeHandlerFn: (type:"APP"|"GLOBAL")=>void;
+    private readonly _bcConfigs:BCConfigurationSetWrapper;
+    private readonly _globalConfigs:GlobalConfigurationSetWrapper;
+    private _changeHandlerFn: (type:"BC"|"GLOBAL")=>void;
 
-    constructor(environmentName: string, boundedContext: string, application: string, appVersion: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
+    constructor(environmentName: string, boundedContext: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
         this._configProvider = configProvider;
         this._environmentName = environmentName;
 
         // TODO: validate params
 
         this._boundedContextName = boundedContext;
-        this._applicationName = application;
-        this._applicationVersion = appVersion;
+
 
         this._standAloneMode = configProvider === null || process.env[STANDALONE_ENV_VAR_NAME] != undefined;
 
-        this._appConfigs = new ConfigurationSetWrapper(environmentName, appConfigSchemaVersion);
-        this._globalConfigs = new ConfigurationSetWrapper(environmentName);
+        this._bcConfigs = new BCConfigurationSetWrapper(environmentName, appConfigSchemaVersion);
+        this._globalConfigs = new GlobalConfigurationSetWrapper(environmentName);
 
         if(!this._standAloneMode && this._configProvider){
             this._configProvider.setConfigChangeHandler(this._changeMessageEvtHandler.bind(this));
@@ -91,19 +86,11 @@ export class ConfigurationClient implements IConfigurationClient{
         return this._boundedContextName;
     }
 
-    get applicationName(): string {
-        return this._applicationName;
+    get bcConfigs():IBoundedContextConfigurationClient{
+        return this._bcConfigs;
     }
 
-    get applicationVersion(): string {
-        return this._applicationVersion;
-    }
-
-    get appConfigs():IAppConfiguration{
-        return this._appConfigs;
-    }
-
-    get globalConfigs():IGlobalConfiguration{
+    get globalConfigs():IGlobalConfigurationClient{
         return this._globalConfigs;
     }
 
@@ -112,11 +99,21 @@ export class ConfigurationClient implements IConfigurationClient{
         const waitMs = Math.floor(Math.random() * (2000 - 250) + 250);
         setTimeout(async ()=>{
             if(eventMsg.msgName === PlatformConfigGlobalConfigsChangedEvt.name){
+                const evt = eventMsg as PlatformConfigGlobalConfigsChangedEvt;
+                if(evt.payload.environmentName !== this.environmentName)
+                    return;
+
                 await this._fetchGlobal();
-                if(this._changeHandlerFn) this._changeHandlerFn("GLOBAL");
-            }else if(eventMsg.msgName === PlatformConfigAppConfigsChangedEvt.name){
-                await this._fetchApp();
-                if(this._changeHandlerFn) this._changeHandlerFn("APP");
+                if(this._changeHandlerFn)
+                    this._changeHandlerFn("GLOBAL");
+            }else if(eventMsg.msgName === PlatformConfigBoundedContextConfigsChangedEvt.name){
+                const evt = eventMsg as PlatformConfigBoundedContextConfigsChangedEvt;
+                if(evt.payload.environmentName !== this.environmentName || evt.payload.boundedContextName !== this.boundedContextName)
+                    return;
+
+                await this._fetchBc();
+                if(this._changeHandlerFn)
+                    this._changeHandlerFn("BC");
             }
         }, waitMs);
     }
@@ -126,7 +123,7 @@ export class ConfigurationClient implements IConfigurationClient{
             await this._configProvider.init();
         }
 
-        this._appConfigs.ApplyFromEnvVars(ENV_VAR_APP_OVERRIDE_PREFIX);
+        this._bcConfigs.ApplyFromEnvVars(ENV_VAR_BC_OVERRIDE_PREFIX);
         this._globalConfigs.ApplyFromEnvVars(ENV_VAR_GLOBAL_OVERRIDE_PREFIX);
     }
 
@@ -137,7 +134,7 @@ export class ConfigurationClient implements IConfigurationClient{
     }
 
     async fetch(): Promise<void>{
-        await this._fetchApp();
+        await this._fetchBc();
         await this._fetchGlobal();
     }
 
@@ -166,42 +163,39 @@ export class ConfigurationClient implements IConfigurationClient{
         this._globalConfigs.ApplyFromEnvVars(ENV_VAR_GLOBAL_OVERRIDE_PREFIX); // env vars always take priority
     }
 
-    private async _fetchApp(): Promise<void>{
+    private async _fetchBc(): Promise<void>{
         if(this._standAloneMode)
             return;
 
-        const appConfigSetDto:AppConfigurationSet|null = await this._configProvider!.fetchAppConfigs(this._environmentName, this._boundedContextName, this._applicationName, this._appConfigs.schemaVersion);
-        if(!appConfigSetDto){
+        const bcConfigSetDto:BoundedContextConfigurationSet|null = await this._configProvider!.fetchBoundedContextConfigs(this._environmentName, this._boundedContextName, this._bcConfigs.schemaVersion);
+        if(!bcConfigSetDto){
             // TODO log
-            throw new Error(`Could not fetch AppConfigurationSet for ENV: ${this._environmentName} - BC: ${this._boundedContextName} - APP: ${this._applicationName} - APP_SCHEMA_VERSION: ${this._appConfigs.schemaVersion}`);
+            throw new Error(`Could not fetch BoundedContextConfigurationSet for ENV: ${this._environmentName} - BC: ${this._boundedContextName} - SCHEMA_VERSION: ${this._bcConfigs.schemaVersion}`);
         }
 
-        if(appConfigSetDto.environmentName !== this._environmentName ||
-                appConfigSetDto.schemaVersion !== this._appConfigs.schemaVersion ||
-                appConfigSetDto.applicationName !== this._applicationName ||
-                appConfigSetDto.boundedContextName !== this._boundedContextName){
-            throw new Error("Received AppConfiguration doesn't match current configuration (env name, schema version, app name, bc name or app version)");
+        if(bcConfigSetDto.environmentName !== this._environmentName ||
+                bcConfigSetDto.schemaVersion !== this._bcConfigs.schemaVersion ||
+                bcConfigSetDto.boundedContextName !== this._boundedContextName){
+            throw new Error("Received BoundedContextConfiguration doesn't match current configuration (env name, schema version, or BC name)");
         }
 
-        this._appConfigs.SetFromJsonObj(appConfigSetDto);
+        this._bcConfigs.SetFromJsonObj(bcConfigSetDto);
 
-        this._appConfigs.ApplyFromEnvVars(ENV_VAR_APP_OVERRIDE_PREFIX); // env vars always take priority
+        this._bcConfigs.ApplyFromEnvVars(ENV_VAR_BC_OVERRIDE_PREFIX); // env vars always take priority
     }
 
     async bootstrap(ignoreDuplicateError = false): Promise<boolean>{
         if(this._standAloneMode)
             return true;
 
-        const appConfigSet: AppConfigurationSet = {
+        const bcConfigSet: BoundedContextConfigurationSet = {
             boundedContextName: this._boundedContextName,
-            applicationName: this._applicationName,
-            applicationVersion: this._applicationVersion,
-            ...this._appConfigs.ToJsonObj()
+            ...this._bcConfigs.ToJsonObj()
         };
-        return this._configProvider!.boostrapAppConfigs(appConfigSet, ignoreDuplicateError);
+        return this._configProvider!.boostrapBoundedContextConfigs(bcConfigSet, ignoreDuplicateError);
     }
 
-    setChangeHandlerFunction(fn: (type:"APP"|"GLOBAL")=>void): void{
+    setChangeHandlerFunction(fn: (type:"BC"|"GLOBAL")=>void): void{
         this._changeHandlerFn = fn;
     }
 }
