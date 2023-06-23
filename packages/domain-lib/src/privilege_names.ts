@@ -19,23 +19,21 @@
  their names indented and be marked with a '-'. Email address can be added
  optionally within square brackets <email>.
 
- * Gates Foundation
- - Name Surname <name.surname@gatesfoundation.com>
-
  * Crosslake
  - Pedro Sousa Barreto <pedrob@crosslaketech.com>
+
+ * Gonçalo Garcia <goncalogarcia99@gmail.com>
 
  --------------
  ******/
 
-"use strict";
+export enum PlatformConfigurationPrivileges {
+	VIEW_GLOBAL = "PLATFORM_CONFIGURATION_VIEW_GLOBAL",
+    BOOSTRAP_GLOBAL = "PLATFORM_CONFIGURATION_BOOSTRAP_GLOBAL",
+    CHANGE_VALUES_GLOBAL = "PLATFORM_CONFIGURATION_CHANGE_VALUES_GLOBAL",
 
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
-
-export type WriteGlobalConfigurationSet = {
-    environmentName: string;
-    schemaVersion: string;
-    parameters: { name: string; type: ConfigParameterTypes; defaultValue: any; description: string; jsonSchema?: string}[];
-    featureFlags: { name: string; defaultValue: boolean; description: string; }[];
-    secrets: { name: string; defaultValue: string | null; description: string }[];
+    VIEW_ALL_BOUNDED_CONTEXT = "PLATFORM_CONFIGURATION_VIEW_ALL_BOUNDED_CONTEXT",
+    VIEW_BOUNDED_CONTEXT = "PLATFORM_CONFIGURATION_VIEW_BOUNDED_CONTEXT",
+    BOOSTRAP_BOUNDED_CONTEXT = "PLATFORM_CONFIGURATION_BOOSTRAP_BOUNDED_CONTEXT",
+    CHANGE_VALUES_BOUNDED_CONTEXT = "PLATFORM_CONFIGURATION_CHANGE_VALUES_BOUNDED_CONTEXT"
 }

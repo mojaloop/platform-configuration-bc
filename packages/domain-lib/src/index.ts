@@ -34,4 +34,5 @@ export * from "./commands";
 export * from "./errors";
 export * from "./aggregate";
 export * from "./infrastructure_interfaces";
+export * from "./privilege_names";
 

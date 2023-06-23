@@ -1,6 +1,6 @@
 {
   "name": "@mojaloop/platform-configuration-bc-configuration-svc",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "mojaloop platform configuration service",
   "license": "Apache-2.0",
   "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/modules/configuration-svc",
@@ -40,9 +40,11 @@
   },
   "dependencies": {
     "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.100",
-    "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.124",
+    "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.125",
     "@mojaloop/platform-configuration-bc-domain-lib": "*",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*",
+    "@mojaloop/security-bc-client-lib": "~0.2.1",
+    "@mojaloop/security-bc-public-types-lib": "~0.2.1",
     "@mojaloop/auditing-bc-client-lib": "~0.0.14",
     "@mojaloop/auditing-bc-public-types-lib": "~0.0.15",
     "@mojaloop/logging-bc-client-lib": "~0.1.24",

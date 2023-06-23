@@ -29,18 +29,47 @@
  ******/
 
 "use strict";
-
-import {WriteGlobalConfigurationSet} from "./local_types";
+import * as semver from "semver";
 import {
     ConfigParameterTypes,
-    GLOBAL_FIXED_PARAMETERS_DEFINITION
+    GLOBAL_FIXED_PARAMETERS_DEFINITION, GlobalConfigurationSet
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 
-// TODO this should be on a separate file
-import currencies from "./list_files/currencies.json";
 
+import {IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
 
-export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
+// import from file
+import currencies from "./json_files/currencies.json";
+
+export const GLOBAL_SCHEMA_VERSION = "0.0.1";
+
+export async function bootstrapGlobalConfigSet(globalRepo:IGlobalConfigSetRepository):Promise<void>{
+    const currentGlobalConfigs = await globalRepo.fetchLatestGlobalConfigSet();
+    let shouldBootstrap = false;
+
+    if(!currentGlobalConfigs){
+        shouldBootstrap = true;
+    }else if (semver.compare(GLOBAL_SCHEMA_VERSION, currentGlobalConfigs.schemaVersion) == 1){
+        // GLOBAL_SCHEMA_VERSION is greater than latest found
+        shouldBootstrap = true;
+    }
+
+    if(!shouldBootstrap) return;
+
+    const globalConfigSet:GlobalConfigurationSet = {
+        schemaVersion: GLOBAL_SCHEMA_VERSION,
+        iterationNumber: 0,
+        parameters: [],
+        featureFlags: [],
+        secrets: []
+    };
+    setSchema(globalConfigSet);
+
+    await globalRepo.storeGlobalConfigSet(globalConfigSet);
+    return Promise.resolve();
+}
+
+function setSchema(globalConfigSet:GlobalConfigurationSet):void{
     //////////////////////////////
     // Start with fixed parameters (defaults)
 
@@ -49,7 +78,8 @@ export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
         type: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.type,
         description: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.description,
         jsonSchema: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.jtdSchema,
-        defaultValue: currencies
+        defaultValue: currencies,
+        currentValue: null
     });
 
     //////////////////////////////
@@ -59,7 +89,8 @@ export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
         name: "boolParam1",
         type: ConfigParameterTypes.BOOL,
         defaultValue: true,
-        description: "description bool param 1"
+        description: "description bool param 1",
+        currentValue: null
     });
 
     //////////////////////////////
@@ -68,7 +99,8 @@ export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
     globalConfigSet.featureFlags.push({
         name: "globalFeatureFlag1",
         defaultValue: true,
-        description: "description for globalFeatureFlag1"
+        description: "description for globalFeatureFlag1",
+        currentValue: true
     });
 
     //////////////////////////////
@@ -77,6 +109,7 @@ export function setSchema(globalConfigSet:WriteGlobalConfigurationSet):void{
     globalConfigSet.secrets.push({
         name: "globalSecret 1",
         defaultValue: "super secret",
-        description: "description for globalSecret 1"
+        description: "description for globalSecret 1",
+        currentValue: "super secret"
     });
 }

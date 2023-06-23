@@ -52,16 +52,14 @@ const ENV_VAR_GLOBAL_OVERRIDE_PREFIX = "ML_GLOBAL_";
 
 export class ConfigurationClient implements IConfigurationClient{
     private readonly _configProvider:IConfigProvider | null;
-    private readonly _environmentName: string;
     private readonly _boundedContextName: string;
     private readonly _standAloneMode: boolean = false;
     private readonly _bcConfigs:BCConfigurationSetWrapper;
     private readonly _globalConfigs:GlobalConfigurationSetWrapper;
     private _changeHandlerFn: (type:"BC"|"GLOBAL")=>void;
 
-    constructor(environmentName: string, boundedContext: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
+    constructor(boundedContext: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
         this._configProvider = configProvider;
-        this._environmentName = environmentName;
 
         // TODO: validate params
 
@@ -70,16 +68,12 @@ export class ConfigurationClient implements IConfigurationClient{
 
         this._standAloneMode = configProvider === null || process.env[STANDALONE_ENV_VAR_NAME] != undefined;
 
-        this._bcConfigs = new BCConfigurationSetWrapper(environmentName, appConfigSchemaVersion);
-        this._globalConfigs = new GlobalConfigurationSetWrapper(environmentName);
+        this._bcConfigs = new BCConfigurationSetWrapper(appConfigSchemaVersion);
+        this._globalConfigs = new GlobalConfigurationSetWrapper();
 
         if(!this._standAloneMode && this._configProvider){
             this._configProvider.setConfigChangeHandler(this._changeMessageEvtHandler.bind(this));
         }
-    }
-
-    get environmentName(): string {
-        return this._environmentName;
     }
 
     get boundedContextName(): string {
@@ -100,15 +94,13 @@ export class ConfigurationClient implements IConfigurationClient{
         setTimeout(async ()=>{
             if(eventMsg.msgName === PlatformConfigGlobalConfigsChangedEvt.name){
                 const evt = eventMsg as PlatformConfigGlobalConfigsChangedEvt;
-                if(evt.payload.environmentName !== this.environmentName)
-                    return;
 
                 await this._fetchGlobal();
                 if(this._changeHandlerFn)
                     this._changeHandlerFn("GLOBAL");
             }else if(eventMsg.msgName === PlatformConfigBoundedContextConfigsChangedEvt.name){
                 const evt = eventMsg as PlatformConfigBoundedContextConfigsChangedEvt;
-                if(evt.payload.environmentName !== this.environmentName || evt.payload.boundedContextName !== this.boundedContextName)
+                if(evt.payload.boundedContextName !== this.boundedContextName)
                     return;
 
                 await this._fetchBc();
@@ -144,18 +136,14 @@ export class ConfigurationClient implements IConfigurationClient{
 
         let globalConfigSetDto: GlobalConfigurationSet | null = null;
         try {
-            globalConfigSetDto = await this._configProvider!.fetchGlobalConfigs(this._environmentName);
+            globalConfigSetDto = await this._configProvider!.fetchGlobalConfigs();
         }catch(err:any){
-            throw new Error(`Could not fetch GlobalConfigurationSet for ENV: ${this._environmentName} - ${err?.message}`);
+            throw new Error(`Could not fetch GlobalConfigurationSet - ${err?.message}`);
         }
 
         if(!globalConfigSetDto){
             // no global config found
             return;
-        }
-
-        if(globalConfigSetDto.environmentName !== this._environmentName){
-            throw new Error("Received GlobalConfigurationSet doesn't match current configuration (env name or schema version)");
         }
 
         this._globalConfigs.SetFromJsonObj(globalConfigSetDto);
@@ -167,16 +155,15 @@ export class ConfigurationClient implements IConfigurationClient{
         if(this._standAloneMode)
             return;
 
-        const bcConfigSetDto:BoundedContextConfigurationSet|null = await this._configProvider!.fetchBoundedContextConfigs(this._environmentName, this._boundedContextName, this._bcConfigs.schemaVersion);
+        const bcConfigSetDto:BoundedContextConfigurationSet|null = await this._configProvider!.fetchBoundedContextConfigs(this._boundedContextName, this._bcConfigs.schemaVersion);
         if(!bcConfigSetDto){
             // TODO log
-            throw new Error(`Could not fetch BoundedContextConfigurationSet for ENV: ${this._environmentName} - BC: ${this._boundedContextName} - SCHEMA_VERSION: ${this._bcConfigs.schemaVersion}`);
+            throw new Error(`Could not fetch BoundedContextConfigurationSet for BC: ${this._boundedContextName} - SCHEMA_VERSION: ${this._bcConfigs.schemaVersion}`);
         }
 
-        if(bcConfigSetDto.environmentName !== this._environmentName ||
-                bcConfigSetDto.schemaVersion !== this._bcConfigs.schemaVersion ||
+        if(bcConfigSetDto.schemaVersion !== this._bcConfigs.schemaVersion ||
                 bcConfigSetDto.boundedContextName !== this._boundedContextName){
-            throw new Error("Received BoundedContextConfiguration doesn't match current configuration (env name, schema version, or BC name)");
+            throw new Error("Received BoundedContextConfiguration doesn't match current configuration (schema version, or BC name)");
         }
 
         this._bcConfigs.SetFromJsonObj(bcConfigSetDto);

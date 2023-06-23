@@ -43,7 +43,6 @@ import {
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
-    protected _environmentName: string;
     protected _schemaVersion: string;
     protected _iterationNumber: number;
 
@@ -51,8 +50,7 @@ export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
     protected readonly _featureFlags: Map<string, ConfigFeatureFlag>;
     protected readonly _secrets: Map<string, ConfigSecret>;
 
-    constructor(environmentName: string, schemaVersion?:string) {
-        this._environmentName = environmentName;
+    constructor(schemaVersion?:string) {
         this._iterationNumber = 0;
         if(schemaVersion) this._schemaVersion = schemaVersion;
 
@@ -121,7 +119,6 @@ export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
      * @constructor
      */
     public SetFromJsonObj(data:ConfigurationSet):void{
-        this._environmentName = data.environmentName;
         this._schemaVersion = data.schemaVersion;
         this._iterationNumber = data.iterationNumber;
 
@@ -148,7 +145,6 @@ export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
 
     public ToJsonObj():ConfigurationSet{
         return {
-            environmentName: this._environmentName,
             schemaVersion: this._schemaVersion,
             iterationNumber: this._iterationNumber,
             parameters: Array.from(this._parameters.values()),
@@ -312,8 +308,8 @@ export class BaseConfigurationSetWrapper implements IBaseConfigurationClient{
 
 
 export class BCConfigurationSetWrapper extends BaseConfigurationSetWrapper implements IBoundedContextConfigurationClient{
-    constructor(environmentName: string, schemaVersion?:string) {
-        super(environmentName, schemaVersion);
+    constructor(schemaVersion?:string) {
+        super(schemaVersion);
     }
 
     /*************************
@@ -355,8 +351,8 @@ export class BCConfigurationSetWrapper extends BaseConfigurationSetWrapper imple
 
 
 export class GlobalConfigurationSetWrapper extends BaseConfigurationSetWrapper implements IGlobalConfigurationClient{
-    constructor(environmentName: string) {
-        super(environmentName);
+    constructor() {
+        super();
     }
 
     /*************************

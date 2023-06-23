@@ -31,23 +31,38 @@
 "use strict";
 
 import {ConsoleLogger} from "@mojaloop/logging-bc-public-types-lib";
+import {AuthenticatedHttpRequester} from "@mojaloop/security-bc-client-lib";
 import {MLKafkaJsonConsumer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
-import {IConfigProvider, ConfigurationClient, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
-import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {ConfigurationClient, DefaultConfigProvider} from "../packages/client-lib/dist/index.js";
+import {ConfigParameterTypes} from "../packages/public-types-lib/dist/index.js";
 import process from "process";
+
+/****/
+
+// IAuthenticatedHttpRequester consts
+const AUTH_TOKEN_ENPOINT = "http://localhost:3201/token";
+const CLIENT_ID = "platform-configuration-bc-api-svc";     // always required
+const CLIENT_SECRET = "superServiceSecret";  // only needed for app logins (client_credentials grant)
 
 const logger = new ConsoleLogger();
 
+// create the instance of IAuthenticatedHttpRequester
+const authRequester = new AuthenticatedHttpRequester(logger, AUTH_TOKEN_ENPOINT);
+authRequester.setAppCredentials(CLIENT_ID, CLIENT_SECRET);
+
 const consumer = new MLKafkaJsonConsumer({kafkaBrokerList: "localhost:9092", kafkaGroupId: "test"}, logger);
-const provider = new DefaultConfigProvider("http://localhost:3100", consumer);
-const configClient = new ConfigurationClient("dev", "consolebc", "0.1.1", provider);
+
+const provider = new DefaultConfigProvider(authRequester, consumer, "http://localhost:3100");
+const configClient = new ConfigurationClient("consolebc", "0.1.1", provider);
 
 configClient.bcConfigs.addNewParam("param1", ConfigParameterTypes.OBJECT, "default", "desc")
 
 console.log("Init...");
 await configClient.init();
+
 console.log("Bootstrap...");
 await configClient.bootstrap();
+
 console.log("Fetch...");
 await configClient.fetch();
 

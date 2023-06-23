@@ -38,9 +38,9 @@ export interface IConfigProvider {
   destroy(): Promise<void>;
   boostrapBoundedContextConfigs(configSetDto:BoundedContextConfigurationSet, ignoreDuplicateError?:boolean): Promise<boolean>;
 
-  fetchBoundedContextConfigs(envName:string, bcName:string, appVersion:string): Promise<BoundedContextConfigurationSet | null>;
+  fetchBoundedContextConfigs(bcName:string, appVersion:string): Promise<BoundedContextConfigurationSet | null>;
 
-  fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>
+  fetchGlobalConfigs(): Promise<GlobalConfigurationSet | null>
 
   // this will be called by the IConfigProvider implementation when changes are detected
   setConfigChangeHandler(fn:(eventMsg:DomainEventMsg)=>Promise<void>):void;

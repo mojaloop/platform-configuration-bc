@@ -24,7 +24,6 @@ import {ConsoleLogger} from "@mojaloop/logging-bc-public-types-lib";
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider, ConfigurationClient, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
 
-const ENV_NAME = "dev";                                 // Global platform environment name
 const BC_NAME = "my-bounded-context";                   // Bounded context registering the configuration schema
 const SCHEMA_VERSION = "0.0.1";                         // This is the version of the config schema
 const CONFIG_SVC_BASEURL = "http://localhost:3100";     // Base URL of the configuration REST service
@@ -41,7 +40,7 @@ const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(CONFIG_S
 // const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider();
 
 // create the configClient instance, passing the defaultConfigProvider
-const  configClient = new ConfigurationClient(ENV_NAME, BC_NAME, CONFIGSET_VERSION, defaultConfigProvider);
+const  configClient = new ConfigurationClient(BC_NAME, CONFIGSET_VERSION, defaultConfigProvider);
 
 // Add the parameters your Bounded Context uses to the configuration schema
 configClient.bcConfigs.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1");
@@ -160,14 +159,13 @@ In a configuration schema, there are three types of configuration values:
 - **Feature Flags** - These are boolean values, which can be enabled or disabled
 - **Secrets** - Centrally stored string secret values
 
-All per bc configuration schemas are identified by their owner bounded context and execution environment.
+All per bc configuration schemas are identified by their owner bounded context.
 All configuration types have a unique name and a description.
 Parameters and Feature Flags have a default value that is provided by the developer (secrets, for security reasons do not have te ability to set a default value).
 
 The per bounded context configuration schema that is sent to the central service by the client during the boostrap step, called `BoundedContextConfigurationSet`, looks like:
 ```typescript
 export type BoundedContextConfigurationSet = {
-    environmentName: string;                        // target environment name
     boundedContextName: string;                     // target bounded context
     schemaVersion: string;                          // schema version (semver format)
     iterationNumber: number;                        // monotonic integer - increases on every configuration/values change

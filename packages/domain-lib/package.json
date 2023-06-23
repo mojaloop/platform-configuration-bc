@@ -35,6 +35,7 @@
   "dependencies": {
     "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.100",
     "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.124",
+    "@mojaloop/security-bc-public-types-lib": "~0.2.1",
     "@mojaloop/auditing-bc-client-lib": "^0.0.14",
     "@mojaloop/auditing-bc-public-types-lib": "^0.0.15",
     "@mojaloop/logging-bc-client-lib": "^0.1.24",

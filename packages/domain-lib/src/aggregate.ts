@@ -56,6 +56,7 @@ import {
 } from "./errors";
 import {BoundedContextConfigSetChangeValuesCmdPayload, GlobalConfigSetChangeValuesCmdPayload} from "./commands";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
+import {ForbiddenError, IAuthorizationClient, CallSecurityContext} from "@mojaloop/security-bc-public-types-lib";
 import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {
     PlatformConfigGlobalConfigsChangedEvtPayload,
@@ -63,6 +64,7 @@ import {
     PlatformConfigBoundedContextConfigsChangedEvtPayload,
     PlatformConfigBoundedContextConfigsChangedEvt
 } from "@mojaloop/platform-shared-lib-public-messages-lib";
+import {PlatformConfigurationPrivileges} from "./privilege_names";
 
 enum AuditActions{
     GlobalConfigSet_SchemaVersionCreated = "GlobalConfigSet_SchemaVersionCreated",
@@ -76,6 +78,7 @@ export class ConfigSetAggregate {
     private readonly _bcConfigSetRepo:IBoundedContextConfigSetRepository;
     private readonly _globalConfigSetRepo:IGlobalConfigSetRepository;
     private readonly _auditClient:IAuditClient;
+    private readonly _authorizationClient: IAuthorizationClient;
     private readonly _messageProducer:IMessageProducer;
     private readonly _ajv: Ajv;
 
@@ -83,6 +86,7 @@ export class ConfigSetAggregate {
         bcConfigSetRepo:IBoundedContextConfigSetRepository,
         globalConfigSetRepo:IGlobalConfigSetRepository,
         auditClient:IAuditClient,
+        authorizationClient: IAuthorizationClient,
         messageProducer:IMessageProducer,
         logger: ILogger
     ) {
@@ -90,9 +94,21 @@ export class ConfigSetAggregate {
         this._globalConfigSetRepo = globalConfigSetRepo;
         this._logger = logger;
         this._auditClient = auditClient;
+        this._authorizationClient = authorizationClient;
         this._messageProducer = messageProducer;
 
         this._ajv = new Ajv();
+    }
+
+    private _enforcePrivilege(secCtx: CallSecurityContext, privilegeId: string): void {
+        for (const roleId of secCtx.rolesIds) {
+            if (this._authorizationClient.roleHasPrivilege(roleId, privilegeId)) {
+                return;
+            }
+        }
+        const error = new ForbiddenError("Caller is missing role with privilegeId: " + privilegeId);
+        this._logger.isWarnEnabled() && this._logger.warn(error.message);
+        throw error;
     }
 
     private async _notifyNewSchema_globalConfigs(globalConfigSet:GlobalConfigurationSet){
@@ -105,7 +121,6 @@ export class ConfigSetAggregate {
 
     private async _notifyNewValues_globalConfigs(globalConfigSet:GlobalConfigurationSet){
         const payload:PlatformConfigGlobalConfigsChangedEvtPayload = {
-            environmentName: globalConfigSet.environmentName,
             schemaVersion: globalConfigSet.schemaVersion,
             iterationNumber: globalConfigSet.iterationNumber
         };
@@ -115,7 +130,6 @@ export class ConfigSetAggregate {
 
     private async _notifyNewValues_bcConfigs(bcConfigSet:BoundedContextConfigurationSet){
         const payload:PlatformConfigBoundedContextConfigsChangedEvtPayload = {
-            environmentName: bcConfigSet.environmentName,
             schemaVersion: bcConfigSet.schemaVersion,
             iterationNumber: bcConfigSet.iterationNumber,
             boundedContextName: bcConfigSet.boundedContextName
@@ -206,7 +220,7 @@ export class ConfigSetAggregate {
      ************************************/
 
     private _validateBoundedContextConfigSet(bcConfigSet:BoundedContextConfigurationSet):boolean{
-        if(!bcConfigSet.environmentName  || !bcConfigSet.boundedContextName) {
+        if(!bcConfigSet.boundedContextName) {
             return false;
         }
 
@@ -231,19 +245,10 @@ export class ConfigSetAggregate {
         return true;
     }
 
-    async getAllBoundedContextConfigSets(envName:string):Promise<BoundedContextConfigurationSet[]>{
-        try {
-            const allVersions: BoundedContextConfigurationSet [] = await this._bcConfigSetRepo.fetchAllBoundedContextConfigSets(envName);
-            return allVersions;
-        }catch(err){
-            this._logger.error(err);
-            return [];
-        }
-    }
+    private async _getLatestBoundedContextConfigSet(bcName: string):Promise<BoundedContextConfigurationSet | null>{
 
-    async getLatestBoundedContextConfigSet(envName:string, bcName: string):Promise<BoundedContextConfigurationSet | null>{
         try {
-            const latestVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchLatestBoundedContextConfigSet(envName, bcName);
+            const latestVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchLatestBoundedContextConfigSet(bcName);
             return latestVersion;
         }catch(err){
             this._logger.error(err);
@@ -252,9 +257,27 @@ export class ConfigSetAggregate {
 
     }
 
-    async getBoundedContextConfigSetVersion(envName:string, bcName: string, version:string):Promise<BoundedContextConfigurationSet | null>{
+    async getAllBoundedContextConfigSets(secCtx: CallSecurityContext, ):Promise<BoundedContextConfigurationSet[]>{
         try {
-            const specificVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchBoundedContextConfigSetVersion(envName, bcName, version);
+            const allVersions: BoundedContextConfigurationSet [] = await this._bcConfigSetRepo.fetchAllBoundedContextConfigSets();
+            return allVersions;
+        }catch(err){
+            this._logger.error(err);
+            return [];
+        }
+    }
+
+    async getLatestBoundedContextConfigSet(secCtx: CallSecurityContext, bcName: string):Promise<BoundedContextConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_BOUNDED_CONTEXT);
+
+        return this._getLatestBoundedContextConfigSet(bcName);
+    }
+
+    async getBoundedContextConfigSetVersion(secCtx: CallSecurityContext, bcName: string, version:string):Promise<BoundedContextConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_BOUNDED_CONTEXT);
+
+        try {
+            const specificVersion: BoundedContextConfigurationSet | null = await this._bcConfigSetRepo.fetchBoundedContextConfigSetVersion(bcName, version);
             return specificVersion;
         }catch(err){
             this._logger.error(err);
@@ -262,14 +285,16 @@ export class ConfigSetAggregate {
         }
     }
 
-    async processCreateBoundedContextConfigSetCmd(bcConfigSet:BoundedContextConfigurationSet):Promise<void>{
+    async processCreateBoundedContextConfigSetCmd(secCtx: CallSecurityContext, bcConfigSet:BoundedContextConfigurationSet):Promise<void>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.BOOSTRAP_BOUNDED_CONTEXT);
+
         // TODO validate the configSet
         if(!this._validateBoundedContextConfigSet(bcConfigSet)){
             this._logger.warn(`invalid BC configuration set for BC: ${bcConfigSet?.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iterationNumber: ${bcConfigSet?.iterationNumber}, ERROR `);
             throw new InvalidBoundedContextConfigurationSetError();
         }
 
-        const latestVersion: BoundedContextConfigurationSet | null = await this.getLatestBoundedContextConfigSet(bcConfigSet.environmentName, bcConfigSet.boundedContextName);
+        const latestVersion: BoundedContextConfigurationSet | null = await this._getLatestBoundedContextConfigSet(bcConfigSet.boundedContextName);
 
         if(latestVersion) {
             if (semver.compare(latestVersion.schemaVersion, bcConfigSet.schemaVersion)==0) {
@@ -309,8 +334,10 @@ export class ConfigSetAggregate {
         await this._notifyNewSchema_bcConfigs(bcConfigSet);
     }
 
-    async processChangeBoundedContextConfigSetValuesCmd(cmdPayload: BoundedContextConfigSetChangeValuesCmdPayload):Promise<void> {
-        const bcConfigSet = await this.getLatestBoundedContextConfigSet(cmdPayload.environmentName, cmdPayload.boundedContextName);
+    async processChangeBoundedContextConfigSetValuesCmd(secCtx: CallSecurityContext, cmdPayload: BoundedContextConfigSetChangeValuesCmdPayload):Promise<void> {
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.CHANGE_VALUES_BOUNDED_CONTEXT);
+
+        const bcConfigSet = await this._getLatestBoundedContextConfigSet(cmdPayload.boundedContextName);
 
         if(!bcConfigSet){
             return Promise.reject(new BoundedContextConfigurationSetNotFoundError());
@@ -376,7 +403,7 @@ export class ConfigSetAggregate {
      ************************************/
 
     private _validateGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):boolean{
-        if(!globalConfigSet.environmentName || !globalConfigSet.schemaVersion) {
+        if(!globalConfigSet.schemaVersion) {
             return false;
         }
 
@@ -410,29 +437,9 @@ export class ConfigSetAggregate {
         return true;
     }
 
-    async getAllGlobalConfigSets(envName:string): Promise<GlobalConfigurationSet[]>{
+    private async _getLatestGlobalConfigSet(): Promise<GlobalConfigurationSet | null>{
         try{
-            const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalBoundedContextConfigSets(envName);
-            return allVersions;
-        }catch(err){
-            this._logger.error(err);
-            return [];
-        }
-    }
-
-    async getGlobalConfigSetVersion(envName:string, version:string): Promise<GlobalConfigurationSet | null>{
-        try{
-            const specificVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(envName, version);
-            return specificVersion;
-        }catch(err){
-            this._logger.error(err);
-            return null;
-        }
-    }
-
-    async getLatestGlobalConfigSet(envName:string): Promise<GlobalConfigurationSet | null>{
-        try{
-            const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet(envName);
+            const latestVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchLatestGlobalConfigSet();
             return latestVersion;
         }catch(err){
             this._logger.error(err);
@@ -440,21 +447,53 @@ export class ConfigSetAggregate {
         }
     }
 
-    async processCreateGlobalConfigSetCmd(globalConfigSet:GlobalConfigurationSet):Promise<void>{
+    async getAllGlobalConfigSets(secCtx: CallSecurityContext): Promise<GlobalConfigurationSet[]>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        try{
+            const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalBoundedContextConfigSets();
+            return allVersions;
+        }catch(err){
+            this._logger.error(err);
+            return [];
+        }
+    }
+
+    async getGlobalConfigSetVersion(secCtx: CallSecurityContext, version:string): Promise<GlobalConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        try{
+            const specificVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(version);
+            return specificVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
+        }
+    }
+
+    async getLatestGlobalConfigSet(secCtx: CallSecurityContext, ): Promise<GlobalConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        return this._getLatestGlobalConfigSet();
+    }
+
+    async processCreateGlobalConfigSetCmd(secCtx: CallSecurityContext, globalConfigSet:GlobalConfigurationSet):Promise<void>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.BOOSTRAP_GLOBAL);
+
         // TODO validate the configSet
         if(!this._validateGlobalConfigSet(globalConfigSet)){
-            this._logger.warn(`invalid global configuration set for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, ERROR `);
+            this._logger.warn(`invalid global configuration set schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, ERROR `);
             throw new InvalidGlobalConfigurationSetError();
         }
 
-        const latestVersion: GlobalConfigurationSet | null = await this.getLatestGlobalConfigSet(globalConfigSet.environmentName);
+        const latestVersion: GlobalConfigurationSet | null = await this._getLatestGlobalConfigSet();
 
         if(latestVersion) {
             if (semver.compare(latestVersion.schemaVersion, globalConfigSet.schemaVersion)==0) {
-                this._logger.warn(`received duplicate global configuration set for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING `);
+                this._logger.warn(`received duplicate global configuration set for for schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING `);
                 throw new CannotCreateDuplicateConfigSetError();
             } else if (semver.compare(latestVersion.schemaVersion, globalConfigSet.schemaVersion)==1) {
-                this._logger.error(`received global configuration set with lower version than latest for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING with error`);
+                this._logger.error(`received global configuration set with lower version than latest for schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}, IGNORING with error`);
                 throw new CannotCreateOverridePreviousVersionConfigSetError();
             }
         }
@@ -476,7 +515,7 @@ export class ConfigSetAggregate {
         // new configsets get 0 iterationNumber, newer versions of existing ones continue from the previous
         globalConfigSet.iterationNumber = !latestVersion ? 0 : latestVersion.iterationNumber;
 
-        this._logger.info(`received configuration set for for env: ${globalConfigSet?.environmentName} schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}`);
+        this._logger.info(`received configuration set for schemaVersion: ${globalConfigSet?.schemaVersion} and iterationNumber: ${globalConfigSet?.iterationNumber}`);
 
         try{
             await this._globalConfigSetRepo.storeGlobalConfigSet(globalConfigSet);
@@ -496,8 +535,10 @@ export class ConfigSetAggregate {
         await this._notifyNewSchema_globalConfigs(globalConfigSet);
     }
 
-    async processChangeGlobalConfigSetValuesCmd(cmdPayload: GlobalConfigSetChangeValuesCmdPayload):Promise<void> {
-        const globalConfigSet = await this.getLatestGlobalConfigSet(cmdPayload.environmentName);
+    async processChangeGlobalConfigSetValuesCmd(secCtx: CallSecurityContext, cmdPayload: GlobalConfigSetChangeValuesCmdPayload):Promise<void> {
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.CHANGE_VALUES_GLOBAL);
+
+        const globalConfigSet = await this._getLatestGlobalConfigSet();
 
         if(!globalConfigSet){
             return Promise.reject(new GlobalConfigurationSetNotFoundError());

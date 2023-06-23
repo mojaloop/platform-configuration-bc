@@ -33,7 +33,6 @@
 import {ConfigItemTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 export type GlobalConfigSetChangeValuesCmdPayload = {
-    environmentName: string,
     schemaVersion: string,
     iterationNumber: number,          // this is required to control that we can only make changes to the latest known set of values (avoids concurrency issues)
     newValues: [{

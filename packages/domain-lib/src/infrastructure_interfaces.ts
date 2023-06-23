@@ -38,9 +38,9 @@ export interface IBoundedContextConfigSetRepository {
 
     // BC config set specific
     storeBoundedContextConfigSet(configSet:BoundedContextConfigurationSet):Promise<void>;
-    fetchAllBoundedContextConfigSets(envName:string):Promise<BoundedContextConfigurationSet[]>;
-    fetchLatestBoundedContextConfigSet(envName:string, bcName:string):Promise<BoundedContextConfigurationSet | null>;
-    fetchBoundedContextConfigSetVersion(envName:string, bcName:string, version:string):Promise<BoundedContextConfigurationSet | null>;
+    fetchAllBoundedContextConfigSets():Promise<BoundedContextConfigurationSet[]>;
+    fetchLatestBoundedContextConfigSet(bcName:string):Promise<BoundedContextConfigurationSet | null>;
+    fetchBoundedContextConfigSetVersion(bcName:string, version:string):Promise<BoundedContextConfigurationSet | null>;
 }
 
 export interface IGlobalConfigSetRepository {
@@ -49,7 +49,7 @@ export interface IGlobalConfigSetRepository {
 
     // global config set specific
     storeGlobalConfigSet(configSet:GlobalConfigurationSet):Promise<void>;
-    fetchGlobalBoundedContextConfigSets(envName:string):Promise<GlobalConfigurationSet[]>;
-    fetchLatestGlobalConfigSet(envName:string):Promise<GlobalConfigurationSet | null>;
-    fetchGlobalConfigSetVersion(envName:string, version:string):Promise<GlobalConfigurationSet | null>;
+    fetchGlobalBoundedContextConfigSets():Promise<GlobalConfigurationSet[]>;
+    fetchLatestGlobalConfigSet():Promise<GlobalConfigurationSet | null>;
+    fetchGlobalConfigSetVersion(version:string):Promise<GlobalConfigurationSet | null>;
 }

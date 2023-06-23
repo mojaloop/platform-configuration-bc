@@ -30,6 +30,7 @@
 
 "use strict";
 
+import process from "process";
 import {
     GLOBALCONFIGSET_URL_RESOURCE_NAME,
     BCCONFIGSET_URL_RESOURCE_NAME,
@@ -37,8 +38,6 @@ import {
     GlobalConfigurationSet
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider} from "./iconfig_provider";
-import axios, {AxiosError, AxiosInstance, AxiosResponse} from "axios";
-import process from "process";
 import {
     DomainEventMsg,
     IMessage,
@@ -46,19 +45,28 @@ import {
     MessageTypes
 } from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {PlatformConfigurationBCTopics} from "@mojaloop/platform-shared-lib-public-messages-lib";
+import {ForbiddenError, IAuthenticatedHttpRequester, UnauthorizedError} from "@mojaloop/security-bc-public-types-lib";
 
 const PLATFORM_CONFIG_BASE_SVC_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_BASE_SVC_URL";
 
 export class DefaultConfigProvider implements IConfigProvider {
     private _changerHandler:(eventMsg:DomainEventMsg)=>Promise<void>;
-    private _client:AxiosInstance;
-    private _messageConsumer:IMessageConsumer|null;
+    private readonly _baseUrlHttpService: string;
+    private readonly _authRequester: IAuthenticatedHttpRequester;
+    private readonly _messageConsumer:IMessageConsumer|null;
     private _initialised = false;
 
-    constructor(configSvcBaseUrl:string|null = null, messageConsumer:IMessageConsumer|null = null) {
+    constructor(
+        authRequester: IAuthenticatedHttpRequester,
+        messageConsumer:IMessageConsumer|null = null,
+        baseUrlHttpService:string|null = null,
+    ) {
+        this._authRequester = authRequester;
         this._messageConsumer = messageConsumer;
 
-        if(!configSvcBaseUrl){
+        if(baseUrlHttpService){
+            this._baseUrlHttpService = baseUrlHttpService;
+        }else{
             if(process.env[PLATFORM_CONFIG_BASE_SVC_URL_ENV_VAR_NAME] === undefined){
                 throw new Error("DefaultConfigProvider cannot continue, a configSvcBaseUrl was not provided in the constructor nor via env var");
             }
@@ -66,18 +74,11 @@ export class DefaultConfigProvider implements IConfigProvider {
 
             try{
                 const url = new URL(envVal || "");
-                configSvcBaseUrl = url.toString();
+                this._baseUrlHttpService = url.toString();
             }catch(err){
                 throw new Error("DefaultConfigProvider cannot continue, invalid configSvcBaseUrl provided via env var");
             }
         }
-
-        axios.defaults.baseURL = configSvcBaseUrl;
-        this._client = axios.create({
-            baseURL: configSvcBaseUrl,
-            timeout: 1000,
-            //headers: {'X-Custom-Header': 'foobar'} TODO config svc authentication
-        });
 
     }
 
@@ -87,21 +88,8 @@ export class DefaultConfigProvider implements IConfigProvider {
         await this._changerHandler(message as DomainEventMsg);
     }
 
-    async boostrapBoundedContextConfigs(configSetDto:BoundedContextConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
-        this._checkInitialised();
-
-        //const resp: AxiosResponse<any> =
-        await this._client.post(`/${BCCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, configSetDto).then((resp:AxiosResponse)=>{
-            console.log(resp.data);
-            return true;
-        }).catch((err:AxiosError) => {
-            if(err.response && err.response.status === 409 && ignoreDuplicateError === true){
-                return true;
-            }
-            console.log(err);
-            return false;
-        });
-        return false; // linter pleaser
+    private _checkInitialised(){
+        if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
     }
 
     async init(): Promise<boolean>{
@@ -122,64 +110,112 @@ export class DefaultConfigProvider implements IConfigProvider {
         }
     }
 
-    private _checkInitialised(){
-        if(!this._initialised) throw new Error("DefaultConfigProvider is not initialised, please call init() first");
-    }
-
-    async fetchBoundedContextConfigs(envName:string, bcName:string, schemaVersion:string): Promise<BoundedContextConfigurationSet | null>{
+    async boostrapBoundedContextConfigs(configSetDto:BoundedContextConfigurationSet, ignoreDuplicateError = false): Promise<boolean>{
         this._checkInitialised();
 
-        let bcConfigSetData: BoundedContextConfigurationSet;
+        const url = new URL(`/${BCCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, this._baseUrlHttpService).toString();
+        const request = new Request(url, {
+            method: "POST",
+            body: JSON.stringify(configSetDto),
+        });
+
         try {
-            const resp = await this._client.get(`/${BCCONFIGSET_URL_RESOURCE_NAME}/${envName}/${bcName}/?version=${schemaVersion}`);
-            if(resp.status !== 200) {
+            const resp = await this._authRequester.fetch(request);
+
+            if(resp.status === 401){
+                throw new UnauthorizedError(`Error boostrapBoundedContextConfigs - UnauthorizedError - ${await resp.text()}`);
+            }
+            if(resp.status === 403){
+                throw new ForbiddenError(`Error boostrapBoundedContextConfigs - Forbidden - ${await resp.text()}`);
+            }
+
+            if(resp.status === 200){
+                return true;
+            }
+
+            if(resp.status === 409 && ignoreDuplicateError === true){
+                return true;
+            }
+
+            const err = new Error(`Invalid response from boostrapBoundedContextConfigs() - status: ${resp.status}`);
+            console.error(err);
+            return false;
+        }catch(error:unknown){
+            if(error instanceof Error) throw error;
+            console.error(error);
+            return false;
+        }
+    }
+
+
+
+
+    async fetchBoundedContextConfigs(bcName:string, schemaVersion:string): Promise<BoundedContextConfigurationSet | null>{
+        this._checkInitialised();
+
+        const url = new URL(`/${BCCONFIGSET_URL_RESOURCE_NAME}/${bcName}/?version=${schemaVersion}`, this._baseUrlHttpService).toString();
+
+        try {
+            const resp = await this._authRequester.fetch(url);
+
+            if(resp.status === 401){
+                throw new UnauthorizedError(`Error fetchBoundedContextConfigs - UnauthorizedError - ${await resp.text()}`);
+            }
+            if(resp.status === 403){
+                throw new ForbiddenError(`Error fetchBoundedContextConfigs - Forbidden - ${await resp.text()}`);
+            }
+
+            if(resp.status !== 200){
                 return null;
             }
-            bcConfigSetData = resp.data;
 
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
+            const bcConfigSetData: BoundedContextConfigurationSet = await resp.json();
 
-        if(bcConfigSetData.environmentName.toUpperCase() !== envName.toUpperCase()
-                || bcConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
+            if(bcConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
                 || bcConfigSetData.schemaVersion != schemaVersion
                 || bcConfigSetData.iterationNumber < 0){
-            console.warn("Invalid BoundedContextConfigurationSet version received in DefaultConfigProvider.fetchBoundedContextConfigs(), must match BC name and config schema version");
-            return null;
-        }
-
-        return bcConfigSetData;
-    }
-
-    async fetchGlobalConfigs(envName:string): Promise<GlobalConfigurationSet | null>{
-        this._checkInitialised();
-
-        let globalConfigurationSet: GlobalConfigurationSet;
-        try {
-            const resp = await this._client.get(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/${envName}?latest`);
-            if(resp.status !== 200) {
+                console.warn("Invalid BoundedContextConfigurationSet version received in DefaultConfigProvider.fetchBoundedContextConfigs(), must match BC name and config schema version");
                 return null;
             }
 
-            globalConfigurationSet = resp.data[0] || null;
+            return bcConfigSetData;
 
-        } catch (error: any) {
-            if(error && error.response && error.response.status === 404){
-                return null;
-            }
-
+        } catch (error: unknown) {
+            if(error instanceof Error) throw error;
             console.error(error);
             return null;
         }
+    }
 
-        if(globalConfigurationSet.environmentName.toUpperCase() !== envName.toUpperCase() || globalConfigurationSet.iterationNumber < 0){
-            console.warn("Invalid GlobalConfigurationSet version received in DefaultConfigProvider.fetchGlobalConfigs");
+    async fetchGlobalConfigs(): Promise<GlobalConfigurationSet | null>{
+        this._checkInitialised();
+
+        const url = new URL(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}?latest`, this._baseUrlHttpService).toString();
+
+        try {
+            const resp = await this._authRequester.fetch(url);
+
+            if(resp.status === 401){
+                throw new UnauthorizedError(`Error fetchGlobalConfigs - UnauthorizedError - ${await resp.text()}`);
+            }
+            if(resp.status === 403){
+                throw new ForbiddenError(`Error fetchGlobalConfigs - Forbidden - ${await resp.text()}`);
+            }
+
+            if(resp.status !== 200){
+                return null;
+            }
+
+            const data = await resp.json();
+            const globalConfigurationSet: GlobalConfigurationSet = data[0] || null;
+
+            return globalConfigurationSet;
+
+        } catch (error: unknown) {
+            if(error instanceof Error) throw error;
+            console.error(error);
             return null;
         }
-
-        return globalConfigurationSet;
     }
 
     // this will be called by the IConfigProvider implementation when changes are detected

@@ -81,7 +81,6 @@ export type ConfigSecret = {
 * */
 
 export type ConfigurationSet = {
-    environmentName: string;                        // target environment name
     schemaVersion: string;                          // config schema version (semver format)
     iterationNumber: number;                        // monotonic integer - increases on every configuration/values change
     parameters: ConfigParameter[];                  // parameter list

@@ -42,17 +42,19 @@ import {
     IBoundedContextConfigSetRepository,
     IGlobalConfigSetRepository
 } from "@mojaloop/platform-configuration-bc-domain-lib";
+import {AuthorizationClient, TokenHelper} from "@mojaloop/security-bc-client-lib";
+import {IAuthorizationClient} from "@mojaloop/security-bc-public-types-lib";
 import {
     AuditClient,
     KafkaAuditClientDispatcher,
     LocalAuditClientCryptoProvider
 } from "@mojaloop/auditing-bc-client-lib";
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
-import {BoundedContextConfigsRoutes} from "./bcconfigs_routes";
-import {GlobalConfigsRoutes} from "./globalconfigs_routes";
-import {GLOBALCONFIGSET_URL_RESOURCE_NAME, BCCONFIGSET_URL_RESOURCE_NAME} from "@mojaloop/platform-configuration-bc-public-types-lib";
+import {PlatformConfigsRoutes} from "./routes";
 import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {MLKafkaJsonProducer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
+import {PrivilegesDefinition} from "./privileges";
+import {bootstrapGlobalConfigSet} from "../global_configs/global_config_schema";
 
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
@@ -68,6 +70,15 @@ const KAFKA_LOGS_TOPIC = process.env["KAFKA_LOGS_TOPIC"] || "logs";
 const AUDIT_KEY_FILE_PATH = process.env["AUDIT_KEY_FILE_PATH"] || "/app/data/audit_private_key.pem";
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
+const AUTH_N_SVC_BASEURL = process.env["AUTH_N_SVC_BASEURL"] || "http://localhost:3201";
+//const AUTH_N_SVC_TOKEN_URL = AUTH_N_SVC_BASEURL + "/token"; // TODO this should not be known here, libs that use the base should add the suffix
+const AUTH_N_TOKEN_ISSUER_NAME = process.env["AUTH_N_TOKEN_ISSUER_NAME"] || "mojaloop.vnext.dev.default_issuer";
+const AUTH_N_TOKEN_AUDIENCE = process.env["AUTH_N_TOKEN_AUDIENCE"] || "mojaloop.vnext.dev.default_audience";
+
+const AUTH_N_SVC_JWKS_URL = process.env["AUTH_N_SVC_JWKS_URL"] || `${AUTH_N_SVC_BASEURL}/.well-known/jwks.json`;
+
+const AUTH_Z_SVC_BASEURL = process.env["AUTH_Z_SVC_BASEURL"] || "http://localhost:3202";
+
 
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
@@ -79,15 +90,18 @@ let globalLogger: ILogger;
 export class Service {
     static logger: ILogger;
     static app: Express;
+    static authorizationClient: IAuthorizationClient;
     static auditClient: IAuditClient;
     static bcConfigRepo:IBoundedContextConfigSetRepository;
     static globalConfigRepo:IGlobalConfigSetRepository;
     static messageProducer: IMessageProducer;
     static aggregate:ConfigSetAggregate;
+    static tokenHelper: TokenHelper;
     static expressServer: Server;
 
     static async start(
         logger?: ILogger,
+        authorizationClient?: IAuthorizationClient,
         auditClient?:IAuditClient,
         bcConfigRepo?:IBoundedContextConfigSetRepository,
         globalConfigRepo?:IGlobalConfigSetRepository,
@@ -125,6 +139,16 @@ export class Service {
         }
         this.auditClient = auditClient;
 
+        // authorization client
+        if (!authorizationClient) {
+            // setup privileges - bootstrap app privs and get priv/role associations
+            authorizationClient = new AuthorizationClient(BC_NAME, APP_NAME, APP_VERSION, AUTH_Z_SVC_BASEURL, logger.createChild("AuthorizationClient"));
+            authorizationClient.addPrivilegesArray(PrivilegesDefinition);
+            await (authorizationClient as AuthorizationClient).bootstrap(true);
+            await (authorizationClient as AuthorizationClient).fetch();
+
+        }
+        this.authorizationClient = authorizationClient;
 
         if(!bcConfigRepo || !globalConfigRepo){
             globalConfigRepo = bcConfigRepo  = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
@@ -132,6 +156,9 @@ export class Service {
         }
         this.bcConfigRepo = bcConfigRepo;
         this.globalConfigRepo = globalConfigRepo;
+
+        // bootstrap global configs if not present
+        await bootstrapGlobalConfigSet(this.globalConfigRepo);
 
         if (!messageProducer) {
             const producerLogger = logger.createChild("producerLogger");
@@ -146,9 +173,14 @@ export class Service {
             this.bcConfigRepo,
             this.globalConfigRepo,
             this.auditClient,
+            this.authorizationClient,
             this.messageProducer,
             this.logger
         );
+
+        // token helper
+        this.tokenHelper = new TokenHelper(AUTH_N_SVC_JWKS_URL, logger, AUTH_N_TOKEN_ISSUER_NAME, AUTH_N_TOKEN_AUDIENCE);
+        await this.tokenHelper.init();
 
         await this.setupAndStartExpress();
     }
@@ -160,11 +192,9 @@ export class Service {
             this.app.use(express.json()); // for parsing application/json
             this.app.use(express.urlencoded({extended: true})); // for parsing application/x-www-form-urlencoded
 
-            const globalConfigsRoutes = new GlobalConfigsRoutes(this.aggregate, this.logger);
-            const bcConfigsRoutes = new BoundedContextConfigsRoutes(this.aggregate, this.logger);
+            const routes = new PlatformConfigsRoutes(this.aggregate, this.logger, this.tokenHelper);
 
-            this.app.use(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}`, globalConfigsRoutes.Router);
-            this.app.use(`/${BCCONFIGSET_URL_RESOURCE_NAME}`, bcConfigsRoutes.Router);
+            this.app.use(routes.Router);
 
             this.app.use((req: express.Request, res: express.Response) => {
                 // catch all
