@@ -40,6 +40,8 @@ import {Currency} from "./global_fixed_params";
 
 export interface IConfigurationClient {
 	get boundedContextName(): string;
+	get applicationName(): string;
+	get applicationVersion(): string;
 	get bcConfigs(): IBoundedContextConfigurationClient;
 	get globalConfigs(): IGlobalConfigurationClient;
 

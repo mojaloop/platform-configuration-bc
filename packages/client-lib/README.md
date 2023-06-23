@@ -24,23 +24,36 @@ import {ConsoleLogger} from "@mojaloop/logging-bc-public-types-lib";
 import {ConfigParameterTypes} from "@mojaloop/platform-configuration-bc-public-types-lib";
 import {IConfigProvider, ConfigurationClient, DefaultConfigProvider} from "@mojaloop/platform-configuration-bc-client-lib";
 
-const BC_NAME = "my-bounded-context";                   // Bounded context registering the configuration schema
-const SCHEMA_VERSION = "0.0.1";                         // This is the version of the config schema
-const CONFIG_SVC_BASEURL = "http://localhost:3100";     // Base URL of the configuration REST service
+const BC_NAME = "my-bounded-context";                       // Bounded context registering the configuration schema
+const APP_NAME = "my-server-app";                           // Application name using the ConfigurationClient
+const APP_VERSION = "0.1.2";                                // Version of the application (should come from npm env var)
+const SCHEMA_VERSION = "0.0.1";                             // This is the version of the config schema
 
-// optional messageConsumer required to enable automatic reloads, triggered by server changes
+const CONFIG_SVC_BASEURL = "http://localhost:3100";         // Base URL of the configuration REST service
+const AUTH_TOKEN_ENPOINT = "http://localhost:3201/token";   // Token endpoint of the authentitcation REST service
+
+// Service credentials of the Application using the ConfigurationClient (provisioned from authentitcation-svc)
+const CLIENT_ID = "my-server-app";
+const CLIENT_SECRET = "superServiceSecret";
+
 const logger = new ConsoleLogger();
+
+// mandatory - create an instance of IAuthenticatedHttpRequester
+const authRequester = new AuthenticatedHttpRequester(logger, AUTH_TOKEN_ENPOINT);
+authRequester.setAppCredentials(CLIENT_ID, CLIENT_SECRET);
+
+// optional - messageConsumer required to enable automatic reloads, triggered by server changes
 const messageConsumer = new MLKafkaJsonConsumer({kafkaBrokerList: "localhost:9092", kafkaGroupId: "test"}, logger);
 
 // create the default provider instance
-const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(CONFIG_SVC_BASEURL, messageConsumer);
+const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(authRequester, messageConsumer, CONFIG_SVC_BASEURL);
 
 // NOTE: you can skip passing the CONFIG_SVC_BASEURL to the DefaultConfigProvider constructor (or pass null)
 // if the PLATFORM_CONFIG_BASE_SVC_URL env var contains the platform config service base url
 // const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider();
 
 // create the configClient instance, passing the defaultConfigProvider
-const  configClient = new ConfigurationClient(BC_NAME, CONFIGSET_VERSION, defaultConfigProvider);
+const  configClient = new ConfigurationClient(BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION, defaultConfigProvider);
 
 // Add the parameters your Bounded Context uses to the configuration schema
 configClient.bcConfigs.addNewParam("stringParam1", ConfigParameterTypes.STRING, "default val", "description string param 1");

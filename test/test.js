@@ -53,7 +53,7 @@ authRequester.setAppCredentials(CLIENT_ID, CLIENT_SECRET);
 const consumer = new MLKafkaJsonConsumer({kafkaBrokerList: "localhost:9092", kafkaGroupId: "test"}, logger);
 
 const provider = new DefaultConfigProvider(authRequester, consumer, "http://localhost:3100");
-const configClient = new ConfigurationClient("consolebc", "0.1.1", provider);
+const configClient = new ConfigurationClient("consolebc", "consoleapp", "0.1.2", "0.1.1", provider);
 
 configClient.bcConfigs.addNewParam("param1", ConfigParameterTypes.OBJECT, "default", "desc")
 

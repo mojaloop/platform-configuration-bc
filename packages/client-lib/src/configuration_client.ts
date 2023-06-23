@@ -53,18 +53,21 @@ const ENV_VAR_GLOBAL_OVERRIDE_PREFIX = "ML_GLOBAL_";
 export class ConfigurationClient implements IConfigurationClient{
     private readonly _configProvider:IConfigProvider | null;
     private readonly _boundedContextName: string;
+    private readonly _applicationName: string;
+    private readonly _applicationVersion: string;
     private readonly _standAloneMode: boolean = false;
     private readonly _bcConfigs:BCConfigurationSetWrapper;
     private readonly _globalConfigs:GlobalConfigurationSetWrapper;
     private _changeHandlerFn: (type:"BC"|"GLOBAL")=>void;
 
-    constructor(boundedContext: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
+    constructor(boundedContext: string, application: string, appVersion: string, appConfigSchemaVersion:string, configProvider:IConfigProvider | null = null) {
         this._configProvider = configProvider;
 
         // TODO: validate params
 
         this._boundedContextName = boundedContext;
-
+        this._applicationName = application;
+        this._applicationVersion = appVersion;
 
         this._standAloneMode = configProvider === null || process.env[STANDALONE_ENV_VAR_NAME] != undefined;
 
@@ -78,6 +81,14 @@ export class ConfigurationClient implements IConfigurationClient{
 
     get boundedContextName(): string {
         return this._boundedContextName;
+    }
+
+    get applicationName(): string {
+        return this._applicationName;
+    }
+
+    get applicationVersion(): string {
+        return this._applicationVersion;
     }
 
     get bcConfigs():IBoundedContextConfigurationClient{

@@ -5,6 +5,8 @@ import {ConfigurationClient, DefaultConfigProvider} from "../../src/";
 
 
 const BC_NAME = "platform-configuration";
+const APP_NAME = "platform-configuration-client-lib";
+const APP_VERSION = "0.0.1";
 const CONFIGSET_VERSION = "0.0.1";
 const CONFIG_SVC_BASEURL = "http://localhost:3100";
 
@@ -29,7 +31,7 @@ describe("client-lib ConfigurationSet tests", () => {
     })
 
     test("BoundedContextConfiguration - Create", async () => {
-        configClient = new ConfigurationClient(BC_NAME, CONFIGSET_VERSION);
+        configClient = new ConfigurationClient(BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION);
         expect(configClient).not.toBeNull()
         expect(configClient.bcConfigs.getAllParams().length).toEqual(0);
         expect(configClient.bcConfigs.getAllFeatureFlags().length).toEqual(0);
