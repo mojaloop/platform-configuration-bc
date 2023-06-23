@@ -46,7 +46,7 @@ authRequester.setAppCredentials(CLIENT_ID, CLIENT_SECRET);
 const messageConsumer = new MLKafkaJsonConsumer({kafkaBrokerList: "localhost:9092", kafkaGroupId: "test"}, logger);
 
 // create the default provider instance
-const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(authRequester, messageConsumer, CONFIG_SVC_BASEURL);
+const defaultConfigProvider:IConfigProvider = new DefaultConfigProvider(logger, authRequester, messageConsumer, CONFIG_SVC_BASEURL);
 
 // NOTE: you can skip passing the CONFIG_SVC_BASEURL to the DefaultConfigProvider constructor (or pass null)
 // if the PLATFORM_CONFIG_BASE_SVC_URL env var contains the platform config service base url
