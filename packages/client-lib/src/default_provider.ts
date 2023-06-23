@@ -46,10 +46,12 @@ import {
 } from "@mojaloop/platform-shared-lib-messaging-types-lib";
 import {PlatformConfigurationBCTopics} from "@mojaloop/platform-shared-lib-public-messages-lib";
 import {ForbiddenError, IAuthenticatedHttpRequester, UnauthorizedError} from "@mojaloop/security-bc-public-types-lib";
+import {ILogger} from "@mojaloop/logging-bc-public-types-lib";
 
 const PLATFORM_CONFIG_BASE_SVC_URL_ENV_VAR_NAME = "PLATFORM_CONFIG_BASE_SVC_URL";
 
 export class DefaultConfigProvider implements IConfigProvider {
+    private readonly _logger: ILogger;
     private _changerHandler:(eventMsg:DomainEventMsg)=>Promise<void>;
     private readonly _baseUrlHttpService: string;
     private readonly _authRequester: IAuthenticatedHttpRequester;
@@ -57,10 +59,12 @@ export class DefaultConfigProvider implements IConfigProvider {
     private _initialised = false;
 
     constructor(
+        logger: ILogger,
         authRequester: IAuthenticatedHttpRequester,
         messageConsumer:IMessageConsumer|null = null,
         baseUrlHttpService:string|null = null,
     ) {
+        this._logger = logger.createChild(this.constructor.name);
         this._authRequester = authRequester;
         this._messageConsumer = messageConsumer;
 
@@ -138,11 +142,11 @@ export class DefaultConfigProvider implements IConfigProvider {
             }
 
             const err = new Error(`Invalid response from boostrapBoundedContextConfigs() - status: ${resp.status}`);
-            console.error(err);
+            this._logger.error(err);
             return false;
         }catch(error:unknown){
+            this._logger.error(error);
             if(error instanceof Error) throw error;
-            console.error(error);
             return false;
         }
     }
@@ -174,15 +178,15 @@ export class DefaultConfigProvider implements IConfigProvider {
             if(bcConfigSetData.boundedContextName.toUpperCase() !== bcName.toUpperCase()
                 || bcConfigSetData.schemaVersion != schemaVersion
                 || bcConfigSetData.iterationNumber < 0){
-                console.warn("Invalid BoundedContextConfigurationSet version received in DefaultConfigProvider.fetchBoundedContextConfigs(), must match BC name and config schema version");
+                this._logger.warn("Invalid BoundedContextConfigurationSet version received in DefaultConfigProvider.fetchBoundedContextConfigs(), must match BC name and config schema version");
                 return null;
             }
 
             return bcConfigSetData;
 
         } catch (error: unknown) {
+            this._logger.error(error);
             if(error instanceof Error) throw error;
-            console.error(error);
             return null;
         }
     }
@@ -212,8 +216,8 @@ export class DefaultConfigProvider implements IConfigProvider {
             return globalConfigurationSet;
 
         } catch (error: unknown) {
+            this._logger.error(error);
             if(error instanceof Error) throw error;
-            console.error(error);
             return null;
         }
     }

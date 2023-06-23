@@ -38,7 +38,7 @@
     "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.125",
     "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.100",
     "@mojaloop/platform-configuration-bc-public-types-lib": "~0.3.1",
-    "axios": "^1.4.0"
+    "@mojaloop/logging-bc-public-types-lib": "~0.1.19"
   },
   "devDependencies": {
     "@mojaloop/logging-bc-public-types-lib": "^0.1.19"
