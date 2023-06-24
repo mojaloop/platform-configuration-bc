@@ -157,8 +157,7 @@ export class Service {
         this.bcConfigRepo = bcConfigRepo;
         this.globalConfigRepo = globalConfigRepo;
 
-        // bootstrap global configs if not present
-        await bootstrapGlobalConfigSet(this.globalConfigRepo);
+
 
         if (!messageProducer) {
             const producerLogger = logger.createChild("producerLogger");
@@ -177,6 +176,9 @@ export class Service {
             this.messageProducer,
             this.logger
         );
+
+        // bootstrap global configs if not present
+        await bootstrapGlobalConfigSet(this.aggregate, this.globalConfigRepo);
 
         // token helper
         this.tokenHelper = new TokenHelper(AUTH_N_SVC_JWKS_URL, logger, AUTH_N_TOKEN_ISSUER_NAME, AUTH_N_TOKEN_AUDIENCE);

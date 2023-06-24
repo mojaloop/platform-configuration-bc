@@ -87,7 +87,9 @@ export class PlatformConfigsRoutes {
         this._router.post(`/${BCCONFIGSET_URL_RESOURCE_NAME}/:bc`, this._bcConfigSet_setValues.bind(this));
 
         // bind routes - global config sets
-        this._router.post(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, this._globalConfigSet_postBootstrap.bind(this));
+        // bootstrap of global is no directly from this svc, not via REST
+        //this._router.post(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/bootstrap`, this._globalConfigSet_postBootstrap.bind(this));
+
         this._router.get(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/`, this._globalConfigSet_get.bind(this));
         this._router.post(`/${GLOBALCONFIGSET_URL_RESOURCE_NAME}/`, this._globalConfigSet_setValues.bind(this));
     }
@@ -331,7 +333,7 @@ export class PlatformConfigsRoutes {
      * handlers - global config sets
      * */
 
-    private async _globalConfigSet_postBootstrap(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
+   /* private async _globalConfigSet_postBootstrap(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void>{
         const data: GlobalConfigurationSet = req.body;
 
         await this._agg.processCreateGlobalConfigSetCmd(req.securityContext!, data).then(() => {
@@ -363,7 +365,7 @@ export class PlatformConfigsRoutes {
                 });
             }
         });
-    }
+    }*/
 
     private async _globalConfigSet_get(req: express.Request, res: express.Response, next: express.NextFunction): Promise<void> {
 

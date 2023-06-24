@@ -447,38 +447,10 @@ export class ConfigSetAggregate {
         }
     }
 
-    async getAllGlobalConfigSets(secCtx: CallSecurityContext): Promise<GlobalConfigurationSet[]>{
-        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
-
-        try{
-            const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalBoundedContextConfigSets();
-            return allVersions;
-        }catch(err){
-            this._logger.error(err);
-            return [];
-        }
-    }
-
-    async getGlobalConfigSetVersion(secCtx: CallSecurityContext, version:string): Promise<GlobalConfigurationSet | null>{
-        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
-
-        try{
-            const specificVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(version);
-            return specificVersion;
-        }catch(err){
-            this._logger.error(err);
-            return null;
-        }
-    }
-
-    async getLatestGlobalConfigSet(secCtx: CallSecurityContext, ): Promise<GlobalConfigurationSet | null>{
-        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
-
-        return this._getLatestGlobalConfigSet();
-    }
-
-    async processCreateGlobalConfigSetCmd(secCtx: CallSecurityContext, globalConfigSet:GlobalConfigurationSet):Promise<void>{
-        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.BOOSTRAP_GLOBAL);
+    //async processCreateGlobalConfigSetCmd(secCtx: CallSecurityContext, globalConfigSet:GlobalConfigurationSet):Promise<void>{
+    // NOTE to be called only from the service boostrap, not via RESP
+    async bootstrapGlobalConfigSet(globalConfigSet:GlobalConfigurationSet):Promise<void>{
+        //this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.BOOSTRAP_GLOBAL);
 
         // TODO validate the configSet
         if(!this._validateGlobalConfigSet(globalConfigSet)){
@@ -534,6 +506,38 @@ export class ConfigSetAggregate {
 
         await this._notifyNewSchema_globalConfigs(globalConfigSet);
     }
+
+    async getAllGlobalConfigSets(secCtx: CallSecurityContext): Promise<GlobalConfigurationSet[]>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        try{
+            const allVersions: GlobalConfigurationSet [] = await this._globalConfigSetRepo.fetchGlobalBoundedContextConfigSets();
+            return allVersions;
+        }catch(err){
+            this._logger.error(err);
+            return [];
+        }
+    }
+
+    async getGlobalConfigSetVersion(secCtx: CallSecurityContext, version:string): Promise<GlobalConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        try{
+            const specificVersion: GlobalConfigurationSet | null = await this._globalConfigSetRepo.fetchGlobalConfigSetVersion(version);
+            return specificVersion;
+        }catch(err){
+            this._logger.error(err);
+            return null;
+        }
+    }
+
+    async getLatestGlobalConfigSet(secCtx: CallSecurityContext, ): Promise<GlobalConfigurationSet | null>{
+        this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.VIEW_GLOBAL);
+
+        return this._getLatestGlobalConfigSet();
+    }
+
+
 
     async processChangeGlobalConfigSetValuesCmd(secCtx: CallSecurityContext, cmdPayload: GlobalConfigSetChangeValuesCmdPayload):Promise<void> {
         this._enforcePrivilege(secCtx, PlatformConfigurationPrivileges.CHANGE_VALUES_GLOBAL);

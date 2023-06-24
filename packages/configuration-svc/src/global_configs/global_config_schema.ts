@@ -36,15 +36,15 @@ import {
 } from "@mojaloop/platform-configuration-bc-public-types-lib";
 
 
-import {IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
+import {ConfigSetAggregate, IGlobalConfigSetRepository} from "@mojaloop/platform-configuration-bc-domain-lib";
 
 // import from file
 import currencies from "./json_files/currencies.json";
 
 export const GLOBAL_SCHEMA_VERSION = "0.0.1";
 
-export async function bootstrapGlobalConfigSet(globalRepo:IGlobalConfigSetRepository):Promise<void>{
-    const currentGlobalConfigs = await globalRepo.fetchLatestGlobalConfigSet();
+export async function bootstrapGlobalConfigSet(agg:ConfigSetAggregate, globalConfigRepo:IGlobalConfigSetRepository):Promise<void>{
+    const currentGlobalConfigs = await globalConfigRepo.fetchLatestGlobalConfigSet();
     let shouldBootstrap = false;
 
     if(!currentGlobalConfigs){
@@ -65,7 +65,7 @@ export async function bootstrapGlobalConfigSet(globalRepo:IGlobalConfigSetReposi
     };
     setSchema(globalConfigSet);
 
-    await globalRepo.storeGlobalConfigSet(globalConfigSet);
+    await agg.bootstrapGlobalConfigSet(globalConfigSet);
     return Promise.resolve();
 }
 
