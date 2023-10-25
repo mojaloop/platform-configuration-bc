@@ -53,7 +53,7 @@ RUN npm run build
 ########################################
 FROM node:18.13-alpine
 WORKDIR /app
-CMD mkdir /app/data
+RUN mkdir /app/data
 
 RUN apk add librdkafka
 
