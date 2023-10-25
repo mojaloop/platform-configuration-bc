@@ -33,17 +33,17 @@
     "dep:update": "ncu -e 2 -u"
   },
   "dependencies": {
-    "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.100",
-    "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.124",
-    "@mojaloop/security-bc-public-types-lib": "~0.2.1",
-    "@mojaloop/auditing-bc-client-lib": "^0.0.14",
-    "@mojaloop/auditing-bc-public-types-lib": "^0.0.15",
-    "@mojaloop/logging-bc-client-lib": "^0.1.24",
+    "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.2.101",
+    "@mojaloop/platform-shared-lib-public-messages-lib": "~0.1.156",
+    "@mojaloop/security-bc-public-types-lib": "~0.3.3",
+    "@mojaloop/auditing-bc-client-lib": "^0.0.15",
+    "@mojaloop/auditing-bc-public-types-lib": "^0.0.17",
+    "@mojaloop/logging-bc-client-lib": "^0.1.26",
     "@mojaloop/platform-configuration-bc-public-types-lib": "*",
-    "semver": "^7.5.2",
+    "semver": "^7.5.4",
     "ajv": "^8.12.0"
   },
   "devDependencies": {
-    "@types/semver": "^7.5.0"
+    "@types/semver": "^7.5.4"
   }
 }

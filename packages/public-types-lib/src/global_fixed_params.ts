@@ -35,6 +35,8 @@ import {ConfigParameterTypes} from "./general_config_types";
 export type Currency = {
     // 3-letter currency code as in ISO 4217 - EUR, USD, etc
     code: string;
+    // 3-number currency number as in ISO 4217 - 978, 840, etc
+    num: string;
     // Number of decimals for currency (for most currencies this will be 2)
     decimals: number;
 }
@@ -45,10 +47,11 @@ export const GLOBAL_FIXED_PARAMETERS_DEFINITION: {
     "CURRENCIES":{
         name: "CURRENCIES",
         type: ConfigParameterTypes.LIST,
-        description: "Global Currencies list in format: {code: string, decimals: number}",
+        description: "Global Currencies list as per ISO 4217 in format: {code: string, num: number, decimals: number}",
         jtdSchema: JSON.stringify({
             properties: {
                 code: {type: "string"},
+                num: {type: "int32"},
                 decimals: {type: "int32"},
             }
         })

@@ -101,7 +101,7 @@ export class ConfigSetAggregate {
     }
 
     private _enforcePrivilege(secCtx: CallSecurityContext, privilegeId: string): void {
-        for (const roleId of secCtx.rolesIds) {
+        for (const roleId of secCtx.platformRoleIds) {
             if (this._authorizationClient.roleHasPrivilege(roleId, privilegeId)) {
                 return;
             }
