@@ -1,14 +1,17 @@
 [
-  {
-	"code": "EUR",
-	"decimals": 2
-  },
-  {
-	"code": "USD",
-	"decimals": 2
-  },
-  {
-	"code": "MMK",
-	"decimals": 2
-  }
+    {
+        "code": "EUR",
+        "num": 978,
+        "decimals": 2
+    },
+    {
+        "code": "USD",
+        "num": 840,
+        "decimals": 2
+    },
+    {
+        "code": "MMK",
+        "num": 104,
+        "decimals": 2
+    }
 ]

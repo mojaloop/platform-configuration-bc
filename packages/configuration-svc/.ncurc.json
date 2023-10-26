@@ -1,5 +1,4 @@
 {
-  "reject": [
-    "typescript"
-  ]
+  "reject": [],
+  "target": "patch"
 }
