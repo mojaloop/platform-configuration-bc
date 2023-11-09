@@ -42,7 +42,7 @@ import {
     IBoundedContextConfigSetRepository,
     IGlobalConfigSetRepository
 } from "@mojaloop/platform-configuration-bc-domain-lib";
-import {AuthorizationClient, TokenHelper} from "@mojaloop/security-bc-client-lib";
+import {AuthenticatedHttpRequester, AuthorizationClient, TokenHelper} from "@mojaloop/security-bc-client-lib";
 import {IAuthorizationClient} from "@mojaloop/security-bc-public-types-lib";
 import {
     AuditClient,
@@ -52,13 +52,19 @@ import {
 import {IAuditClient} from "@mojaloop/auditing-bc-public-types-lib";
 import {PlatformConfigsRoutes} from "./routes";
 import {IMessageProducer} from "@mojaloop/platform-shared-lib-messaging-types-lib";
-import {MLKafkaJsonProducer} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
+import {
+    MLKafkaJsonConsumer,
+    MLKafkaJsonConsumerOptions,
+    MLKafkaJsonProducer
+} from "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib";
 import {PrivilegesDefinition} from "./privileges";
 import {bootstrapGlobalConfigSet} from "../global_configs/global_config_schema";
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const packageJSON = require("../../package.json");
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
-const APP_VERSION = process.env.npm_package_version || "0.0.1";
+const APP_VERSION = packageJSON.version;
 const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
 const LOG_LEVEL:LogLevel = process.env["LOG_LEVEL"] as LogLevel || LogLevel.DEBUG;
 
@@ -71,7 +77,7 @@ const AUDIT_KEY_FILE_PATH = process.env["AUDIT_KEY_FILE_PATH"] || "/app/data/aud
 const CONFIG_REPO_STORAGE_FILE_PATH = process.env["CONFIG_REPO_STORAGE_FILE_PATH"] || "/app/data/configSetRepoTempStorageFile.json";
 
 const AUTH_N_SVC_BASEURL = process.env["AUTH_N_SVC_BASEURL"] || "http://localhost:3201";
-//const AUTH_N_SVC_TOKEN_URL = AUTH_N_SVC_BASEURL + "/token"; // TODO this should not be known here, libs that use the base should add the suffix
+const AUTH_N_SVC_TOKEN_URL = AUTH_N_SVC_BASEURL + "/token"; // TODO this should not be known here, libs that use the base should add the suffix
 const AUTH_N_TOKEN_ISSUER_NAME = process.env["AUTH_N_TOKEN_ISSUER_NAME"] || "mojaloop.vnext.dev.default_issuer";
 const AUTH_N_TOKEN_AUDIENCE = process.env["AUTH_N_TOKEN_AUDIENCE"] || "mojaloop.vnext.dev.default_audience";
 
@@ -79,9 +85,17 @@ const AUTH_N_SVC_JWKS_URL = process.env["AUTH_N_SVC_JWKS_URL"] || `${AUTH_N_SVC_
 
 const AUTH_Z_SVC_BASEURL = process.env["AUTH_Z_SVC_BASEURL"] || "http://localhost:3202";
 
+const SVC_CLIENT_ID = process.env["SVC_CLIENT_ID"] || "platform-configuration-bc-api-svc";
+const SVC_CLIENT_SECRET = process.env["SVC_CLIENT_SECRET"] || "superServiceSecret";
+
 
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
+};
+
+const kafkaConsumerOptions: MLKafkaJsonConsumerOptions = {
+    kafkaBrokerList: KAFKA_URL,
+    kafkaGroupId: `${BC_NAME}_${APP_NAME}_authz_client`
 };
 
 let globalLogger: ILogger;
@@ -141,12 +155,25 @@ export class Service {
 
         // authorization client
         if (!authorizationClient) {
+            // create the instance of IAuthenticatedHttpRequester
+            const authRequester = new AuthenticatedHttpRequester(logger, AUTH_N_SVC_TOKEN_URL);
+            authRequester.setAppCredentials(SVC_CLIENT_ID, SVC_CLIENT_SECRET);
+
+            const consumerHandlerLogger = logger.createChild("authorizationClientConsumer");
+            const messageConsumer = new MLKafkaJsonConsumer(kafkaConsumerOptions, consumerHandlerLogger);
+
             // setup privileges - bootstrap app privs and get priv/role associations
-            authorizationClient = new AuthorizationClient(BC_NAME, APP_NAME, APP_VERSION, AUTH_Z_SVC_BASEURL, logger.createChild("AuthorizationClient"));
+            authorizationClient = new AuthorizationClient(
+                BC_NAME, APP_NAME, APP_VERSION,
+                AUTH_Z_SVC_BASEURL, logger.createChild("AuthorizationClient"),
+                authRequester,
+                messageConsumer
+            );
             authorizationClient.addPrivilegesArray(PrivilegesDefinition);
             await (authorizationClient as AuthorizationClient).bootstrap(true);
             await (authorizationClient as AuthorizationClient).fetch();
-
+            // init message consumer to automatically update on role changed events
+            await (authorizationClient as AuthorizationClient).init();
         }
         this.authorizationClient = authorizationClient;
 
