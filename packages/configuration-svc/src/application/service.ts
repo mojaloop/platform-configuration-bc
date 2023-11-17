@@ -88,6 +88,7 @@ const AUTH_Z_SVC_BASEURL = process.env["AUTH_Z_SVC_BASEURL"] || "http://localhos
 const SVC_CLIENT_ID = process.env["SVC_CLIENT_ID"] || "platform-configuration-bc-api-svc";
 const SVC_CLIENT_SECRET = process.env["SVC_CLIENT_SECRET"] || "superServiceSecret";
 
+const SERVICE_START_TIMEOUT_MS= (process.env["SERVICE_START_TIMEOUT_MS"] && parseInt(process.env["SERVICE_START_TIMEOUT_MS"])) || 60_000;
 
 const kafkaProducerOptions = {
     kafkaBrokerList: KAFKA_URL
@@ -112,6 +113,7 @@ export class Service {
     static aggregate:ConfigSetAggregate;
     static tokenHelper: TokenHelper;
     static expressServer: Server;
+    static startupTimer: NodeJS.Timeout;
 
     static async start(
         logger?: ILogger,
@@ -122,6 +124,10 @@ export class Service {
         messageProducer?: IMessageProducer
     ):Promise<void>{
         console.log(`${APP_NAME} - service starting with PID: ${process.pid}`);
+
+        this.startupTimer = setTimeout(()=>{
+            throw new Error("Service start timed-out");
+        }, SERVICE_START_TIMEOUT_MS);
 
         if (!logger) {
             logger = new KafkaLogger(
@@ -212,6 +218,9 @@ export class Service {
         await this.tokenHelper.init();
 
         await this.setupAndStartExpress();
+
+        // remove startup timeout
+        clearTimeout(this.startupTimer);
     }
 
     static async setupAndStartExpress(): Promise<void> {
