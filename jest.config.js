@@ -3,7 +3,7 @@
 module.exports = {
     preset: "ts-jest",
     testEnvironment: "node",
-    testMatch: ["<rootDir>/test/integration/**/*.test.js"],
+    testMatch: ["<rootDir>/test/integration/**/*.test.ts"],
     passWithNoTests: true,
     collectCoverage: true,
     collectCoverageFrom: ["**/src/**/*.ts"],

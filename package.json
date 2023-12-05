@@ -1,60 +1,60 @@
 {
-  "name": "@mojaloop/platform-configuration-bc",
-  "version": "0.0.1",
-  "description": "mojaloop platform configuration bounded context.",
-  "license": "Apache-2.0",
-  "homepage": "https://github.com/mojaloop/platform-configuration-bc",
-  "private": true,
-  "bugs": {
-    "url": "https://github.com/mojaloop/platform-configuration-bc/issues#readme"
-  },
-  "contributors": [
-    "Pedro Sousa Barreto <pedrosousabarreto@gmail.com>"
-  ],
-  "scripts": {
-    "prepare": "husky install",
-    "pre_commit_check": "npm run build && npm run lint && npm run test:unit",
-    "start:configuration-svc": "npm -w @mojaloop/platform-configuration-bc-configuration-svc run service",
-    "build": "npm -ws run build",
-    "watch": "npm -ws run watch",
-    "clean": "npm run clean:dist; npm run clean:npm",
-    "clean:npm": "rm -Rf node_modules; npm -ws run clean:npm",
-    "clean:dist": "rm -Rf dist; npm -ws run clean:dist",
-    "pretest": "echo 'FIX ME'",
-    "standard": "npm run --no-progress --stream lint'",
-    "lint": "npm -ws run lint",
-    "lint:fix": "npm -ws run lint:fix",
-    "test": "npm run test:unit",
-    "test:unit": "npm -ws --if-present run test:unit",
-    "posttest": "npm run coverage:merge && npm run coverage:gen-report",
-    "coverage:merge": "nyc merge ./coverage/ ./coverage/coverage.json",
-    "coverage:gen-report": "nyc report --reporter=lcov --reporter=text --temp-dir=./coverage",
-    "test:integration": "jest",
-    "audit:resolve": "npm -ws run audit:resolve",
-    "audit:check": "npm -ws run audit:check",
-    "dep:check": "ncu -e 2; npm -ws run dep:check",
-    "dep:update": "ncu -e 2 -u; npm -ws run dep:update"
-  },
-  "devDependencies": {
-    "@mojaloop/platform-shared-lib-nodejs-kafka-client-lib": "~0.3.71",
-    "@types/jest": "^29.5.8",
-    "@types/node": "^20.3.3",
-    "@typescript-eslint/eslint-plugin": "^5.59.11",
-    "@typescript-eslint/parser": "^5.59.11",
-    "eslint": "^8.43.0",
-    "husky": "^8.0.3",
-    "jest": "^29.5.0",
-    "nyc": "^15.1.0",
-    "npm-check-updates": "^16.10.19",
-    "ts-jest": "^29.1.1",
-    "typescript": "^5.1.6"
-  },
-  "workspaces": [
-    "packages/public-types-lib",
-    "packages/domain-lib",
-    "packages/*"
-  ],
-  "engines": {
-    "node": ">=18.13.0"
-  }
+    "name": "@mojaloop/platform-configuration-bc",
+    "version": "0.0.1",
+    "description": "mojaloop platform configuration bounded context.",
+    "license": "Apache-2.0",
+    "homepage": "https://github.com/mojaloop/platform-configuration-bc",
+    "private": true,
+    "bugs": {
+        "url": "https://github.com/mojaloop/platform-configuration-bc/issues#readme"
+    },
+    "contributors": [
+        "Pedro Sousa Barreto <pedrosousabarreto@gmail.com>"
+    ],
+    "scripts": {
+        "prepare": "husky install",
+        "pre_commit_check": "npm run build && npm run lint && npm run test:unit",
+        "start:configuration-svc": "npm -w @mojaloop/platform-configuration-bc-configuration-svc run service",
+        "build": "npm -ws run build",
+        "watch": "npm -ws run watch",
+        "clean": "npm run clean:dist; npm run clean:npm",
+        "clean:npm": "rm -Rf node_modules; npm -ws run clean:npm",
+        "clean:dist": "rm -Rf dist; npm -ws run clean:dist",
+        "pretest": "echo 'FIX ME'",
+        "standard": "npm run --no-progress --stream lint'",
+        "lint": "npm -ws run lint",
+        "lint:fix": "npm -ws run lint:fix",
+        "test": "npm run test:unit",
+        "test:unit": "npm -ws --if-present run test:unit",
+        "posttest": "npm run coverage:merge && npm run coverage:gen-report",
+        "coverage:merge": "nyc merge ./coverage/ ./coverage/coverage.json",
+        "coverage:gen-report": "nyc report --reporter=lcov --reporter=text --temp-dir=./coverage",
+        "test:integration": "jest",
+        "audit:resolve": "npm -ws run audit:resolve",
+        "audit:check": "npm -ws run audit:check",
+        "dep:check": "ncu -e 2; npm -ws run dep:check",
+        "dep:update": "ncu -e 2 -u; npm -ws run dep:update"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.10",
+        "@types/node": "^20.10.3",
+        "@typescript-eslint/eslint-plugin": "^6.13.2",
+        "@typescript-eslint/parser": "^6.13.2",
+        "eslint": "^8.55.0",
+        "husky": "^8.0.3",
+        "jest": "^29.7.0",
+        "npm-check-updates": "~16.14.11",
+        "nyc": "^15.1.0",
+        "ts-jest": "^29.1.1",
+        "typescript": "^5.3.2",
+        "tslib": "^2.6.2"
+    },
+    "workspaces": [
+        "packages/public-types-lib",
+        "packages/domain-lib",
+        "packages/*"
+    ],
+    "engines": {
+        "node": ">=20.10.0"
+    }
 }
