@@ -37,6 +37,7 @@ import {ILogger, LogLevel} from "@mojaloop/logging-bc-public-types-lib";
 import {KafkaLogger} from "@mojaloop/logging-bc-client-lib";
 import process from "process";
 import {FileConfigSetRepo} from "../infrastructure/file_configset_repo";
+import {MongoConfigSetRepo} from "../infrastructure/mongodb_configset_repo";
 import {
     ConfigSetAggregate,
     IBoundedContextConfigSetRepository,
@@ -98,6 +99,10 @@ const kafkaConsumerOptions: MLKafkaJsonConsumerOptions = {
     kafkaBrokerList: KAFKA_URL,
     kafkaGroupId: `${BC_NAME}_${APP_NAME}_authz_client`
 };
+
+const MONGO_URL = process.env["MONGO_URL"] || "mongodb://root:example@localhost:27017/";
+const CONFIG_SET_TYPE = process.env["CONFIG_SET_TYPE"] || "JSON_FILE_CONFIG_SET"; //MONGODB_CONFIG_SET
+//export CONFIG_SET_TYPE= MONGODB_CONFIG_SET
 
 let globalLogger: ILogger;
 
@@ -184,8 +189,14 @@ export class Service {
         this.authorizationClient = authorizationClient;
 
         if(!bcConfigRepo || !globalConfigRepo){
-            globalConfigRepo = bcConfigRepo  = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
-            await bcConfigRepo.init();
+            if (CONFIG_SET_TYPE == "MONGODB_CONFIG_SET") {
+                globalConfigRepo = bcConfigRepo = new MongoConfigSetRepo(MONGO_URL, logger);
+                await bcConfigRepo.init();
+            }else {
+                globalConfigRepo = bcConfigRepo = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
+                await bcConfigRepo.init();
+            }
+
         }
         this.bcConfigRepo = bcConfigRepo;
         this.globalConfigRepo = globalConfigRepo;
