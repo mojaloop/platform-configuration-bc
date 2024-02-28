@@ -48,7 +48,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
         if (collections.find((col) => col.name === this._collectionNameGlobalConfigSets)) {
             this._collectionGlobalConfigSets = db.collection(this._collectionNameGlobalConfigSets);
         } else {
-            this._collectionGlobalConfigSets = await db.createCollection(this._collectionNameGlobalConfigSets);
+            this._collectionGlobalConfigSets = await db.createCollection(this._collectionNameGlobalConfigSets);         
         }
 
         // Check if the BCConfigSet collection already exists or create.
@@ -71,7 +71,14 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
     private async _saveToGlobalConfigSets(globalConfigSet : GlobalConfigurationSet):Promise<void>{
         try {
-            const result = await this._collectionGlobalConfigSets.insertOne(globalConfigSet);
+            const result = await this._collectionGlobalConfigSets.insertOne({
+                    schemaVersion: globalConfigSet.schemaVersion,
+                    iterationNumber: globalConfigSet.iterationNumber,
+                    parameters: globalConfigSet.parameters,
+                    featureFlags: globalConfigSet.featureFlags,
+                    secrets: globalConfigSet.secrets
+                }
+            );
         }catch (err) {
             this._logger.error(err);
             throw new Error("cannot save to mongodb global config");
@@ -80,7 +87,14 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
     private async _saveToBcConfigSets(bcConfigSet:BoundedContextConfigurationSet):Promise<void>{
         try {
-            const result = await this._collectionBcConfigSets.insertOne(bcConfigSet);
+            const result = await this._collectionBcConfigSets.insertOne({
+                schemaVersion: bcConfigSet.schemaVersion,
+                iterationNumber: bcConfigSet.iterationNumber,
+                parameters: bcConfigSet.parameters,
+                featureFlags: bcConfigSet.featureFlags,
+                secrets: bcConfigSet.secrets,
+                boundedContextName : bcConfigSet.boundedContextName
+            });
         }catch (err) {
             this._logger.error(err);
             throw new Error("cannot save to mongodb boundedcontext config");
