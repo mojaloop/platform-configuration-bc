@@ -101,7 +101,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
     private async _saveToGlobalConfigSets(globalConfigSet : GlobalConfigurationSet):Promise<void>{
         try {
-            const result = await this._collectionGlobalConfigSets.insertOne({
+            await this._collectionGlobalConfigSets.insertOne({
                     schemaVersion: globalConfigSet.schemaVersion,
                     iterationNumber: globalConfigSet.iterationNumber,
                     parameters: globalConfigSet.parameters,
@@ -117,7 +117,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
     private async _saveToBcConfigSets(bcConfigSet:BoundedContextConfigurationSet):Promise<void>{
         try {
-            const result = await this._collectionBcConfigSets.insertOne({
+            await this._collectionBcConfigSets.insertOne({
                 schemaVersion: bcConfigSet.schemaVersion,
                 iterationNumber: bcConfigSet.iterationNumber,
                 parameters: bcConfigSet.parameters,
@@ -220,7 +220,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
         const allVersions: BoundedContextConfigurationSet[] = [];
 
         for (const key of this._bcConfigSets.keys()) {
-            const versions = this._bcConfigSets.get(key) || [];
+            const versions = this._bcConfigSets.get(key) ?? [];
             allVersions.push(...versions);
         }
 
