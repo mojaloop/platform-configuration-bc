@@ -43,12 +43,9 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
     protected _collectionGlobalConfigSets: Collection<GlobalConfigurationSet>;
     protected _collectionBcConfigSets: Collection<BoundedContextConfigurationSet>;
     private _initialized: boolean = false;
-    private readonly _databaseName: string = "configsets";
+    private readonly _databaseName: string = "platform-configuration";
     private readonly _collectionNameGlobalConfigSets: string = "globalConfigsets";
     private readonly _collectionNameBcConfigSets: string = "bcConfigsets";
-    private _globalConfigSets: GlobalConfigurationSet[] = [];
-    private _bcConfigSets: Map<string, BoundedContextConfigurationSet[]> = new Map<string, BoundedContextConfigurationSet[]>();
-
 
     constructor(_mongoUri: string, logger: ILogger) {
         this._logger = logger.createChild(this.constructor.name);
@@ -87,9 +84,6 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
         } else {
             this._collectionBcConfigSets = await db.createCollection(this._collectionNameBcConfigSets);
         }
-
-        await this._loadFromGlobalConfigSets();
-        await this._loadFromBcConfigSets();
 
         this._initialized = true;
         this._logger.info("MongoConfigSetRepo - initialized");
@@ -131,50 +125,6 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
         } 
     }
 
-    private async _loadFromGlobalConfigSets():Promise<void>{
-        this._globalConfigSets = [];
-        try{
-            const mongoGlobalConfigSets = await this._collectionGlobalConfigSets.find({}).toArray();
-
-            this._globalConfigSets = mongoGlobalConfigSets.map(doc => ({
-                schemaVersion: doc.schemaVersion,
-                iterationNumber: doc.iterationNumber,
-                parameters: doc.parameters,
-                featureFlags: doc.featureFlags,
-                secrets: doc.secrets
-              }))  || [];
-
-        }catch (err) {
-            this._logger.error(err);
-            throw new Error("cannot load  MongoConfigSetRepo - globalConfigsets");
-        }
-
-        this._logger.info(`Successfully read file contents - globalConfigSet count: ${this._globalConfigSets.length}.`);
-    }
-    
-
-    private async _loadFromBcConfigSets():Promise<void>{
-        this._bcConfigSets.clear();
-        try{
-            const mongoBcConfigSets = await this._collectionBcConfigSets.find({}).toArray();
-
-            const configMap = new Map<string, BoundedContextConfigurationSet[]>();
-            mongoBcConfigSets.forEach(doc => {
-                if (!configMap.has(doc.boundedContextName)) {
-                    configMap.set(doc.boundedContextName, []);
-                }
-                configMap.get(doc.boundedContextName)?.push(doc);
-            });
-
-        }catch (err) {
-            this._logger.error(err);
-            throw new Error("cannot load  MongoConfigSetRepo bcConfigsets");
-        }
-
-        this._logger.info(`Successfully fetch contents - bcConfigSets count: ${this._bcConfigSets.size}`);
-    }
-  
-
 
     /**************************************
      * BC config set code
@@ -190,9 +140,9 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
         return bcName.toUpperCase();
     }
 
-    private _getBoundedContextConfigVersions(bcName: string): BoundedContextConfigurationSet[] {
-        const configs: BoundedContextConfigurationSet[] | undefined = this._bcConfigSets.get(this._configSetIdString(bcName));
+    private async _getBoundedContextConfigVersions(bcName: string): Promise<BoundedContextConfigurationSet[]> {
 
+        const configs = await this._collectionBcConfigSets.find({boundedContextName : bcName}).toArray(); 
         if (!configs) {
             return [];
         }
@@ -217,23 +167,20 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
     }
 
     async fetchAllBoundedContextConfigSets(): Promise<BoundedContextConfigurationSet[]> {
-        const allVersions: BoundedContextConfigurationSet[] = [];
 
-        for (const key of this._bcConfigSets.keys()) {
-            const versions = this._bcConfigSets.get(key) ?? [];
-            allVersions.push(...versions);
-        }
+        const allVersions: BoundedContextConfigurationSet[] = await this._collectionBcConfigSets.find({}).toArray(); 
 
         if (allVersions.length <= 0) {
             return [];
         }
 
         return allVersions.map(value => this._deepCopyBoundedContextConfigSet(value));
+
     }
 
     // returns the latest iteration for the latest schema version
     async fetchLatestBoundedContextConfigSet(bcName: string): Promise<BoundedContextConfigurationSet | null> {
-        const allVersions: BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(bcName);
+        const allVersions: BoundedContextConfigurationSet[] = await this._getBoundedContextConfigVersions(bcName);
         if (allVersions.length <= 0) {
             return null;
         }
@@ -249,7 +196,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
     }
 
     async fetchBoundedContextConfigSetVersion(bcName: string, version: string): Promise<BoundedContextConfigurationSet | null> {
-        const allVersions: BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(bcName);
+        const allVersions: BoundedContextConfigurationSet[] = await this._getBoundedContextConfigVersions(bcName);
         if (allVersions.length <= 0) {
             return null;
         }
@@ -264,18 +211,7 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
     }
 
     async storeBoundedContextConfigSet(bcConfigSet: BoundedContextConfigurationSet): Promise<void> {
-        // if not found this._getBoundedContextConfigVersions returns empty array
-        const versions: BoundedContextConfigurationSet[] = this._getBoundedContextConfigVersions(bcConfigSet.boundedContextName);
-        const found: boolean = versions.length > 0;
-
-        // checks should happen in the caller agg, this should blindly overwrite
-        versions.push(bcConfigSet);
-
-        if (!found) {
-            const idStr = this._configSetIdString(bcConfigSet.boundedContextName);
-            this._bcConfigSets.set(idStr, versions);
-        }
-
+        
         await this._saveToBcConfigSets(bcConfigSet);
 
         this._logger.info(`Stored BC configuration set for BC: ${bcConfigSet.boundedContextName}, schemaVersion: ${bcConfigSet.schemaVersion} and iteration number: ${bcConfigSet.iterationNumber}`);
@@ -292,8 +228,6 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
     // global config set specific
     async storeGlobalConfigSet(globalConfigSet: GlobalConfigurationSet): Promise<void> {
-        // checks should happen in the caller agg, this should blindly overwrite
-        this._globalConfigSets.push(globalConfigSet);
 
         await this._saveToGlobalConfigSets(globalConfigSet);
 
@@ -302,23 +236,28 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
 
 
     async fetchGlobalBoundedContextConfigSets(): Promise<GlobalConfigurationSet[]> {
-        if (this._globalConfigSets.length <= 0)
+
+        const globalConfigSets = await this._collectionGlobalConfigSets.find({}).toArray();
+
+        if (globalConfigSets.length <= 0)
             return [];
 
         // clone array
-        const ret = this._globalConfigSets.slice(0);
-        this._globalConfigSets.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
+        const ret = globalConfigSets.slice(0);
+        globalConfigSets.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
 
         return ret.map(value => this._deepCopyGlobalConfigSet(value));
     }
 
     async fetchGlobalConfigSetVersion(version: string): Promise<GlobalConfigurationSet | null> {
-        if (this._globalConfigSets.length <= 0) {
+
+        const globalConfigSets = await this._collectionGlobalConfigSets.find({}).toArray();
+        if (globalConfigSets.length <= 0) {
             return null;
         }
 
         // filter per version
-        const ret = this._globalConfigSets.filter(value => value.schemaVersion === version);
+        const ret = globalConfigSets.filter(value => value.schemaVersion === version);
 
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => b.iterationNumber - a.iterationNumber);
         const lastIteraction = ret[0];
@@ -327,12 +266,14 @@ export class MongoConfigSetRepo implements IBoundedContextConfigSetRepository, I
     }
 
     async fetchLatestGlobalConfigSet(): Promise<GlobalConfigurationSet | null> {
-        if (this._globalConfigSets.length <= 0) {
+   
+        const globalConfigSets = await this._collectionGlobalConfigSets.find({}).toArray();
+        if (globalConfigSets.length <= 0) {
             return null;
         }
 
         // clone array
-        let ret = this._globalConfigSets.slice(0);
+        let ret = globalConfigSets.slice(0);
 
         // sort by decreasing version order (latest version first)
         ret.sort((a: GlobalConfigurationSet, b: GlobalConfigurationSet) => semver.compare(b.schemaVersion, a.schemaVersion));

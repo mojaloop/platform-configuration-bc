@@ -192,9 +192,11 @@ export class Service {
             if (CONFIG_SET_TYPE == "MONGODB_CONFIG_SET") {
                 globalConfigRepo = bcConfigRepo = new MongoConfigSetRepo(MONGO_URL, logger);
                 await bcConfigRepo.init();
+                await globalConfigRepo.init();
             }else {
                 globalConfigRepo = bcConfigRepo = new FileConfigSetRepo(CONFIG_REPO_STORAGE_FILE_PATH, logger);
                 await bcConfigRepo.init();
+                await globalConfigRepo.init();
             }
 
         }
