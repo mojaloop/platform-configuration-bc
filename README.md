@@ -2,121 +2,127 @@
 
 **EXPERIMENTAL** vNext Platform Configuration Bounded Context Mono Repository
 
-{{DESCRIPTION}}
+The platform configuration bounded context is responsible for managing configuration sets, encompassing both global settings and bounded-context-specific configurations, such as bootstrapping, updating, and storage.
 
-## Modules
+## Contents
+- [platform-configuration-bc](#platform-configuration-bc-bc)
+  - [Contents](#contents)
+  - [Packages](#packages)
+  - [Running Locally](#running-locally)
+  - [Configuration](#configuration)
+  - [Logging](#logging)
+  - [Tests](#tests)
+  - [Auditing Dependencies](#auditing-dependencies)
+  - [CI/CD](#cicd-pipelines)
+  - [Documentation](#documentation)
 
-TBD
+## Packages
+The Platform Configuration BC consists of the following packages;
 
-## Usage
+`client-lib`
+Platform Configuration BC Client Library.
+[README](./packages/client-lib/README.md)
 
-### Install Node version
+`configuration-svc`
+Configuration Service.
+[README](./packages/configuration-svc/README.md)
 
-More information on how to install NVM: https://github.com/nvm-sh/nvm
+`domain-lib`
+Domain library types.
+[README](./packages/domain-lib/README.md)
 
-```bash
-nvm install
-nvm use
-```
+`public-types-lib`
+Public shared types.
+[README](./packages/public-types-lib/README.md)
 
-### Install Dependencies
+## Running Locally
 
-```bash
-npm install
-```
+Please follow the instruction in [Onboarding Document](Onboarding.md) to setup and run the service locally.
 
-## Build
+## Configuration
 
-```bash
-npm run build
-```
+See the README.md file on each services for more Environment Variable Configuration options.
 
-## Unit Tests
+## Logging
+
+Logs are sent to standard output by default.
+
+## Tests
+
+### Unit Tests
 
 ```bash
 npm run test:unit
 ```
 
-Create a directory and subdirectory in module/configuration-svc/
-```shell
-cd modules/configuration-svc/
-mkdir -p app/data 
-```
-
-
-## Run the services 
-
-### Startup supporting services
-
-Use https://github.com/mojaloop/platform-shared-tools/tree/main/packages/deployment/docker-compose-infra
-
-
-To startup Kafka, MongoDB, Elasticsearch and Kibana, follow the steps below(executed in docker-compose-infra/):   
-
-1. Create a sub-directory called `exec` inside the `docker-compose-infra` (this) directory, and navigate to that directory.
-
+### Run Integration Tests
 
 ```shell
-mkdir exec 
-cd exec
-```
-
-2. Create the following directories as sub-directories of the `docker-compose/exec` directory:
-* `certs`
-* `esdata01`
-* `kibanadata`
-* `logs`
-
-```shell
-mkdir {certs,esdata01,kibanadata,logs}
-```
-
-3. Copy the `.env.sample` to the exec dir:
-```shell
-cp ../.env.sample ./.env
-```
-
-4. Review the contents of the `.env` file
-
-5. Ensure `vm.max_map_count` is set to at least `262144`: Example to apply property on live system:
-```shell
-sysctl -w vm.max_map_count=262144 # might require sudo
-```
-
-### Start Infrastructure Containers
-
-Start the docker containers using docker-compose up (in the exec dir)
-```shell
-docker-compose -f ../docker-compose-infra.yml --env-file ./.env up -d
-```
-
-
-To view the logs of the infrastructure containers, run:
-```shell
-docker-compose -f ../docker-compose-infra.yml --env-file ./.env logs -f
-```
-
-To stop the infrastructure containers, run:
-```shell
-docker-compose -f ../docker-compose-infra.yml --env-file ./.env stop
-```
-
-
-After running the docker-compose-infra we can start configuration-svc:
-```shell
-npm run start:configuration-svc
-```
-
-## Integration Tests
-
-```bash
 npm run test:integration
 ```
 
-## Troubleshoot 
-
-### Unable to load dlfcn_load
-```bash
-error:25066067:DSO support routines:dlfcn_load:could not load the shared library
+### Run all tests at once
+Requires integration tests pre-requisites
+```shell
+npm run test
 ```
-Fix: https://github.com/mojaloop/security-bc.git  `export OPENSSL_CONF=/dev/null`
+
+# Collect coverage (from both unit and integration test types)
+
+After running the unit and/or integration tests: 
+
+```shell
+npm run posttest
+```
+
+You can then consult the html report in:
+
+```shell
+coverage/lcov-report/index.html
+```
+
+## Auditing Dependencies
+We use npm audit to check dependencies for node vulnerabilities. 
+
+To start a new resolution process, run:
+```
+npm run audit:fix
+``` 
+
+You can check to see if the CI will pass based on the current dependencies with:
+
+```
+npm run audit:check
+```
+
+## CI/CD Pipelines
+
+### Execute locally the pre-commit checks - these will be executed with every commit and in the default CI/CD pipeline 
+
+Make sure these pass before committing any code
+```
+npm run pre_commit_check
+```
+
+### Work Flow 
+
+ As part of our CI/CD process, we use CircleCI. The CircleCI workflow automates the process of publishing changed packages to the npm registry and building Docker images for select packages before publishing them to DockerHub. It also handles versioning, tagging commits, and pushing changes back to the repository.
+
+The process includes five phases. 
+1. Setup : This phase initializes the environment, loads common functions, and retrieves commits and git change history since the last successful CI build.
+
+2. Detecting Changed Package.
+
+3. Publishing Changed Packages to NPM.
+
+4. Building Docker Images and Publishing to DockerHub.
+
+5. Pushing Commits to Git.
+
+ All code is automatically linted, built, and unit tested by CircleCI pipelines, where unit test results are kept for all runs. All libraries are automatically published to npm.js, and all Docker images are published to Docker Hub.
+
+ ## Documentation
+The following documentation provides insight into the Platform Configuration Bounded Context.
+
+- **MIRO Board** - https://miro.com/app/board/o9J_lJyA1TA=/
+- **Work Sessions** - https://docs.google.com/document/d/1Nm6B_tSR1mOM0LEzxZ9uQnGwXkruBeYB2slgYK1Kflo/edit#heading=h.6w64vxvw6er4
