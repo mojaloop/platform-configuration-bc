@@ -32,8 +32,8 @@
         "test:integration": "jest",
         "audit:resolve": "npm -ws run audit:resolve",
         "audit:check": "npm -ws run audit:check",
-        "dep:check": "ncu -e 2; npm -ws run dep:check",
-        "dep:update": "ncu -e 2 -u; npm -ws run dep:update"
+        "dep:check": "(ncu -e 2 || true) && npm -ws run dep:check",
+        "dep:update": "(ncu -e 2 -u || true) && npm -ws run dep:update"
     },
     "devDependencies": {
         "@types/jest": "^29.5.12",
@@ -43,7 +43,7 @@
         "eslint": "^8.55.0",
         "husky": "^8.0.3",
         "jest": "^29.7.0",
-        "npm-check-updates": "~16.14.18",
+        "npm-check-updates": "~16.14.20",
         "nyc": "^15.1.0",
         "ts-jest": "^29.1.2",
         "typescript": "^5.3.3",
