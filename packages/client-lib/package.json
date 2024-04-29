@@ -1,6 +1,6 @@
 {
     "name": "@mojaloop/platform-configuration-bc-client-lib",
-    "version": "0.5.4",
+    "version": "0.5.6",
     "description": "Mojaloop platform configuration client lib",
     "license": "Apache-2.0",
     "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/modules/client-lib",
