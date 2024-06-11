@@ -31,7 +31,7 @@ describe("client-lib ConfigurationSet tests", () => {
     })
 
     test("BoundedContextConfiguration - Create", async () => {
-        configClient = new ConfigurationClient(BC_NAME, APP_NAME, APP_VERSION, CONFIGSET_VERSION);
+        configClient = new ConfigurationClient(BC_NAME, CONFIGSET_VERSION);
         expect(configClient).not.toBeNull()
         expect(configClient.bcConfigs.getAllParams().length).toEqual(0);
         expect(configClient.bcConfigs.getAllFeatureFlags().length).toEqual(0);
