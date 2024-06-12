@@ -37,7 +37,7 @@
         "@mojaloop/security-bc-public-types-lib": "~0.6.1",
         "@mojaloop/platform-shared-lib-public-messages-lib": "~0.5.21",
         "@mojaloop/platform-shared-lib-messaging-types-lib": "~0.6.2",
-        "@mojaloop/platform-configuration-bc-public-types-lib": "~0.5.2",
+        "@mojaloop/platform-configuration-bc-public-types-lib": "~0.6.1",
         "@mojaloop/logging-bc-public-types-lib": "~0.5.4"
     },
     "devDependencies": {},
