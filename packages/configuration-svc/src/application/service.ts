@@ -66,7 +66,7 @@ import {bootstrapGlobalConfigSet} from "../global_configs/global_config_schema";
 const packageJSON = require("../../package.json");
 const BC_NAME = "platform-configuration-bc";
 const APP_NAME = "configuration-svc";
-const BC_VERSION = packageJSON.version;
+const APP_VERSION = packageJSON.version;
 const PRODUCTION_MODE = process.env["PRODUCTION_MODE"] || false;
 const LOG_LEVEL:LogLevel = process.env["LOG_LEVEL"] as LogLevel || LogLevel.DEBUG;
 
@@ -152,7 +152,7 @@ export class Service {
             logger = new KafkaLogger(
                 BC_NAME,
                 APP_NAME,
-                BC_VERSION,
+                APP_VERSION,
                 kafkaProducerCommonOptions,
                 KAFKA_LOGS_TOPIC,
                 LOG_LEVEL
@@ -173,7 +173,7 @@ export class Service {
             const cryptoProvider = new LocalAuditClientCryptoProvider(AUDIT_KEY_FILE_PATH);
             const auditDispatcher = new KafkaAuditClientDispatcher(kafkaProducerCommonOptions, KAFKA_AUDITS_TOPIC, auditLogger);
             // NOTE: to pass the same kafka logger to the audit client, make sure the logger is started/initialised already
-            auditClient = new AuditClient(BC_NAME, APP_NAME, BC_VERSION, cryptoProvider, auditDispatcher);
+            auditClient = new AuditClient(BC_NAME, APP_NAME, APP_VERSION, cryptoProvider, auditDispatcher);
             await auditClient.init();
         }
         this.auditClient = auditClient;
@@ -190,7 +190,7 @@ export class Service {
             // setup privileges - bootstrap app privs and get priv/role associations
             authorizationClient = new AuthorizationClient(
                 BC_NAME,
-                BC_VERSION,
+                APP_VERSION,
                 AUTH_Z_SVC_BASEURL, 
                 logger.createChild("AuthorizationClient"),
                 authRequester,
@@ -272,7 +272,7 @@ export class Service {
 
             this.expressServer = this.app.listen(portNum, () => {
                 this.logger.info(`🚀 Server ready on port ${portNum}`);
-                this.logger.info(`${APP_NAME} server v: ${BC_VERSION} started`);
+                this.logger.info(`${APP_NAME} server v: ${APP_VERSION} started`);
 
                 resolve();
             });
