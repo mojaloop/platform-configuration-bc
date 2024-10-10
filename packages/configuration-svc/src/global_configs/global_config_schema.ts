@@ -40,6 +40,7 @@ import {ConfigSetAggregate, IGlobalConfigSetRepository} from "@mojaloop/platform
 
 // import from file
 import currencies from "./json_files/currencies.json";
+import process from "process";
 
 export const GLOBAL_SCHEMA_VERSION = "0.0.1";
 
@@ -73,12 +74,19 @@ function setSchema(globalConfigSet:GlobalConfigurationSet):void{
     //////////////////////////////
     // Start with fixed parameters (defaults)
 
+    let defaultCurrencies:any = currencies;
+
+    if(process.env["DEFAULT_CURRENCIES"]){
+        const envDefaultCurrenciesStr = process.env["DEFAULT_CURRENCIES"];
+        defaultCurrencies = JSON.parse(envDefaultCurrenciesStr);
+    }
+
     globalConfigSet.parameters.push({
         name: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.name,
         type: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.type,
         description: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.description,
         jsonSchema: GLOBAL_FIXED_PARAMETERS_DEFINITION.CURRENCIES.jtdSchema,
-        defaultValue: currencies,
+        defaultValue: defaultCurrencies,
         currentValue: null
     });
 
