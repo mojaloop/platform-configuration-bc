@@ -8,10 +8,5 @@
         "code": "USD",
         "num": 840,
         "decimals": 2
-    },
-    {
-        "code": "MMK",
-        "num": 104,
-        "decimals": 2
     }
 ]
