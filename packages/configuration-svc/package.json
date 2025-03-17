@@ -1,6 +1,6 @@
 {
     "name": "@mojaloop/platform-configuration-bc-configuration-svc",
-    "version": "0.6.4",
+    "version": "0.6.5",
     "description": "mojaloop platform configuration service",
     "license": "Apache-2.0",
     "homepage": "https://github.com/mojaloop/platform-configuration-bc/tree/main/modules/configuration-svc",
